@@ -9,7 +9,8 @@ from school_book.models import (
     SchoolSubject,
     Grade,
     Event,
-    Absence
+    Absence,
+    Role
 )
 from school_book.helper import (
     ok_response,
@@ -21,7 +22,8 @@ from school_book.serializers import (
     SchoolSubjectSerializer,
     GradeSerializer,
     EventSerializer,
-    AbsenceSerializer
+    AbsenceSerializer,
+    RoleSerializer
 )
 from django.http.response import JsonResponse
 import json
@@ -268,7 +270,7 @@ def get_all_school_subjects(request):
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
-    if decoded_security_token['role'] not in ['Parent', 'Professor', 'Admin']:
+    if decoded_security_token['role'] not in ['Parent', 'Professor', 'Administrator']:
         return error_handler(error_status=403, message='Forbidden permission!')
     if not requester_user:
         return error_handler(error_status=404, message=f'Not found!')
@@ -296,7 +298,7 @@ def get_all_student_grades(request, user_id, school_subject_id):
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
-    if decoded_security_token['role'] not in ['Parent', 'Professor', 'Admin']:
+    if decoded_security_token['role'] not in ['Parent', 'Professor', 'Administrator']:
         return error_handler(error_status=403, message='Forbidden permission!')
     if not requester_user:
         return error_handler(error_status=404, message=f'Not found!')
@@ -330,7 +332,7 @@ def get_all_events_by_parent_id(request):
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
-    if decoded_security_token['role'] not in ['Parent', 'Professor', 'Admin']:
+    if decoded_security_token['role'] not in ['Parent', 'Professor', 'Administrator']:
         return error_handler(error_status=403, message='Forbidden permission!')
     if not requester_user:
         return error_handler(error_status=404, message=f'Not found!')
@@ -364,7 +366,7 @@ def get_all_student_absences(request, user_id, school_subject_id, is_justified):
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
-    if decoded_security_token['role'] not in ['Parent', 'Professor', 'Admin']:
+    if decoded_security_token['role'] not in ['Parent', 'Professor', 'Administrator']:
         return error_handler(error_status=403, message='Forbidden permission!')
     if not requester_user:
         return error_handler(error_status=404, message=f'Not found!')
@@ -410,7 +412,7 @@ def get_all_student_absences_number(request, user_id, school_subject_id):
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
-    if decoded_security_token['role'] not in ['Parent', 'Professor', 'Admin']:
+    if decoded_security_token['role'] not in ['Parent', 'Professor', 'Administrator']:
         return error_handler(error_status=403, message='Forbidden permission!')
     if not requester_user:
         return error_handler(error_status=404, message=f'Not found!')
@@ -425,3 +427,76 @@ def get_all_student_absences_number(request, user_id, school_subject_id):
     absences['justified_absences'] = justified_absences
     absences['unjustified_absences'] = unjustified_absences
     return ok_response(message='Absences', additional_data=absences)
+
+
+@api_view(['GET'])
+def get_all_roles(request):
+    """
+    This method will get all roles
+    :param request:
+    :return: list of roles
+    """
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    roles = Role.get_all_roles()
+    roles = RoleSerializer(many=True, instance=roles).data
+    for role in roles:
+        role = dict(role)
+    return ok_response(message='Roles', additional_data=roles)
+
+
+@api_view(['POST'])
+def add_new_role(request):
+    """
+    This method will add new role
+    :param request:
+    :param_body: roleName
+    :return: message
+    """
+    body = request.data
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    if 'roleName' not in body:
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not Role.add_new_role(role_name=body['roleName']):
+        return error_handler(error_status=403, message=f'Role is not added!')
+    return ok_response(message='Role is successfully added!')
+
+
+@api_view(['DELETE'])
+def delete_role(request, role_id):
+    """
+    This method will delete old role
+    :param request:
+    :param role_id:
+    :param_body: roleName
+    :return: message
+    """
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    role = Role.get_role_by_id(role_id=role_id)
+    if not role:
+        return error_handler(error_status=404, message=f"Role doesn't exist!")
+    role.delete_role()
+    return ok_response(message='Role is successfully deleted!')

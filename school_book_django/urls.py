@@ -34,5 +34,8 @@ urlpatterns = [
     path('school_book/child/<int:user_id>/school_subject/<int:school_subject_id>/isJustified/<str:is_justified>/absences',
          school_book_views.get_all_student_absences),
     path('school_book/child/<int:user_id>/school_subject/<int:school_subject_id>/absences',
-         school_book_views.get_all_student_absences_number)
+         school_book_views.get_all_student_absences_number),
+    path('school_book/admin/roles', school_book_views.get_all_roles),
+    path('school_book/admin/roles/new', school_book_views.add_new_role),
+    path('school_book/admin/roles/role/<int:role_id>/delete', school_book_views.delete_role)
 ]

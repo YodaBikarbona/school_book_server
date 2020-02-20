@@ -34,6 +34,29 @@ class Role(models.Model):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def get_all_roles(cls):
+        return Role.objects.filter().all()
+
+    def delete_role(self):
+        self.delete()
+
+    @classmethod
+    def add_new_role(cls, role_name):
+        try:
+            role = Role()
+            role.name = role_name
+            role.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+            role.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def get_role_by_id(cls, role_id):
+        return Role.objects.filter(id=role_id).first()
+
 
 class Gender(models.Model):
     created = models.DateTimeField(default=django.utils.timezone.now)
