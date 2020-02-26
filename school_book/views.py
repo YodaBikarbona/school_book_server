@@ -10,12 +10,15 @@ from school_book.models import (
     Grade,
     Event,
     Absence,
-    Role
+    Role,
+    Gender
 )
 from school_book.helper import (
     ok_response,
-    error_handler
+    error_handler,
+    check_valid_limit_and_offset
 )
+from school_book.validators import Validation
 from school_book.serializers import (
     UserSerializer,
     ParentSerializer,
@@ -23,7 +26,8 @@ from school_book.serializers import (
     GradeSerializer,
     EventSerializer,
     AbsenceSerializer,
-    RoleSerializer
+    RoleSerializer,
+    GenderSerializer
 )
 from django.http.response import JsonResponse
 import json
@@ -94,9 +98,11 @@ def get_users(request):
     users = User.get_all_users(data=query_string, requester=user.role.name)
     users = UserSerializer(many=True, instance=users).data
     users_json = []
-    if not users:
-        return error_handler(error_status=404, message=f'Not found!')
+    # if not users:
+    #     return error_handler(error_status=404, message=f'Not found!')
+    users_number = User.count_all_users(data=query_string, requester=user.role.name)
     for u in users:
+        u['users_number'] = users_number
         u = dict(u)
         u['role'] = dict(u['role'])
         u['gender'] = dict(u['gender'])
@@ -170,7 +176,7 @@ def activate_or_deactivate_user(request, user_id):
         else:
             return error_handler(error_status=400, message='Something is wrong! User is not activated!')
     else:
-        if user.deactivate_user(user_id=requester_user.id):
+        if user.deactivate_user():
             return ok_response('User is successfully deactivated!')
         else:
             return error_handler(error_status=400, message='Something is wrong! User is not deactivated!')
@@ -445,9 +451,17 @@ def get_all_roles(request):
         return error_handler(error_status=403, message='Forbidden permission!')
     if not requester_user:
         return error_handler(error_status=404, message=f'Not found!')
-    roles = Role.get_all_roles()
+    query_string = request.GET
+    limit = query_string['limit'] if 'limit' in query_string else None
+    offset = query_string['offset'] if 'offset' in query_string else None
+    limit, offset = check_valid_limit_and_offset(limit=limit, offset=offset)
+    # if not check_valid_limit_and_offset(limit=limit, offset=offset):
+    #     return error_handler(error_status=400, message=f'Bad data!')
+    roles = Role.get_all_roles(limit=limit, offset=offset)
     roles = RoleSerializer(many=True, instance=roles).data
+    roles_number = Role.count_roles()
     for role in roles:
+        role['roles_number'] = roles_number
         role = dict(role)
     return ok_response(message='Roles', additional_data=roles)
 
@@ -500,3 +514,108 @@ def delete_role(request, role_id):
         return error_handler(error_status=404, message=f"Role doesn't exist!")
     role.delete_role()
     return ok_response(message='Role is successfully deleted!')
+
+
+@api_view(['GET'])
+def get_all_genders(request):
+    """
+    This method will get all genders
+    :param request:
+    :return: list of roles
+    """
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    genders = Gender.get_all_genders()
+    genders = GenderSerializer(many=True, instance=genders).data
+    for gender in genders:
+        gender = dict(gender)
+    return ok_response(message='Genders', additional_data=genders)
+
+
+@api_view(['POST'])
+def add_new_user(request):
+    """
+    This method will add new user
+    :param request:
+    :param_body: first_name, last_name, email, roleId, genderId, address, city, password,
+    phone, is_active, birth_date, parent_mother, parent_father
+    :return: message
+    """
+    body = request.data
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    if not Validation.add_user_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not User.add_new_user(data=body):
+        return error_handler(error_status=403, message=f'User is not added!')
+    return ok_response(message='User is successfully added!')
+
+
+@api_view(['POST'])
+def edit_user(request, user_id):
+    """
+    This method will edit old user
+    :param request:
+    :param user_id:
+    :param_body: first_name, last_name, email, roleId, genderId, address, city,
+    phone, is_active, birth_date, parent_mother, parent_father
+    :return: message
+    """
+    body = request.data
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    if not Validation.edit_user_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not User.edit_user(data=body, user_id=user_id, requester=requester_user.role.name):
+        return error_handler(error_status=403, message=f'User is not edited!')
+    return ok_response(message='User is successfully edited!')
+
+
+@api_view(['PATCH'])
+def change_user_password(request, user_id):
+    """
+    This method will change user password through admin panel
+    :param request:
+    :param user_id:
+    :param_body: password
+    :return: message
+    """
+    body = request.data
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    if not Validation.admin_change_user_password_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    user = User.get_user_by_id(user_id=user_id, requester=requester_user.role.name)
+    if not user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not user.change_password(password=body['password']):
+        return error_handler(error_status=403, message=f'Password is not changed!')
+    return ok_response(message='Password is successfully changed!')

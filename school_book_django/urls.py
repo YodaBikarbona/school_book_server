@@ -37,5 +37,9 @@ urlpatterns = [
          school_book_views.get_all_student_absences_number),
     path('school_book/admin/roles', school_book_views.get_all_roles),
     path('school_book/admin/roles/new', school_book_views.add_new_role),
-    path('school_book/admin/roles/role/<int:role_id>/delete', school_book_views.delete_role)
+    path('school_book/admin/roles/role/<int:role_id>/delete', school_book_views.delete_role),
+    path('school_book/admin/genders', school_book_views.get_all_genders),
+    path('school_book/admin/users/add', school_book_views.add_new_user),
+    path('school_book/admin/users/user/<int:user_id>/edit', school_book_views.edit_user),
+    path('school_book/admin/users/user/<int:user_id>/change_password', school_book_views.change_user_password)
 ]

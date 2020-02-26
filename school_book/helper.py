@@ -5,6 +5,7 @@ import django
 from django.http import HttpResponse
 import json
 import string
+from school_book.constants import LIMIT_CHOICES
 
 
 def now():
@@ -70,3 +71,23 @@ def error_handler(error_status, message):
 
 def activation_code(size):
     return ''.join([random.choice(string.ascii_letters + string.digits) for n in range(size)])
+
+
+def check_valid_limit_and_offset(limit, offset):
+    LIMIT = 0
+    OFFSET = 0
+    if not limit and offset:
+        return LIMIT, OFFSET
+    if limit:
+        try:
+            LIMIT = int(limit)
+            if LIMIT not in LIMIT_CHOICES:
+                LIMIT = 0
+        except ValueError as ex:
+            print(ex)
+    if offset:
+        try:
+            OFFSET = int(offset)
+        except ValueError as ex:
+            print(ex)
+    return LIMIT, OFFSET

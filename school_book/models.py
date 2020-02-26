@@ -35,8 +35,17 @@ class Role(models.Model):
         return self.name
 
     @classmethod
-    def get_all_roles(cls):
-        return Role.objects.filter().all()
+    def get_all_roles(cls, limit, offset):
+        roles = Role.objects.filter().all()
+        if offset and limit and limit > offset:
+            roles = roles[offset*limit:(offset*limit)+limit]
+        elif not offset and limit and limit > offset:
+            roles = roles[:offset+limit]
+        return roles
+
+    @classmethod
+    def count_roles(cls):
+        return Role.objects.filter().count()
 
     def delete_role(self):
         self.delete()
@@ -68,6 +77,10 @@ class Gender(models.Model):
 
     def __str__(self):
         return f'{self.name}'
+
+    @classmethod
+    def get_all_genders(cls):
+        return Gender.objects.filter().all()
 
 
 class User(models.Model):
@@ -193,7 +206,7 @@ class User(models.Model):
                     let = int(let)
                     is_digit = True
                 except Exception as ex:
-                    print(ex)
+                    # print(ex)
                     if let in spec:
                         is_special_character = True
                     else:
@@ -226,8 +239,9 @@ class User(models.Model):
             if not self.admin_password and not self.password and not self.email and not self.phone and not self.salt:
                 raise ValidationError(f'Fields admin_password, password, email, phone and salt are required!')
             if not self.id:
-                self.activation_code = self.create_activation_code(10)
-                self.expired_activation_code = django.utils.timezone.now() + timedelta(hours=1)
+                if not self.is_active:
+                    self.activation_code = self.create_activation_code(10)
+                    self.expired_activation_code = django.utils.timezone.now() + timedelta(hours=2)
                 if self.check_user_unique_email(email=self.email):
                     raise ValidationError(f'User with {self.email} already exists!')
                 if not self.password_strength():
@@ -244,15 +258,17 @@ class User(models.Model):
                     if not self.password_strength():
                         raise ValueError(f'Password is not valid!')
                     self.password = new_psw(self.salt, self.admin_password)
+                    self.admin_password = ''
+                    self.is_active = False
                     self.activation_code = self.create_activation_code(10)
-                    self.expired_activation_code = django.utils.timezone.now() + timedelta(hours=1)
+                    self.expired_activation_code = django.utils.timezone.now() + timedelta(hours=2)
             self.parent_mother = None
             self.parent_father = None
             self.admin_password = None
         else:
             return f"Error! This role doesn't exist inside roles constant!"
         super().save(*args, **kwargs)
-        if not existing_id or (existing_id and changing_password and self.admin_password):
+        if not existing_id or (existing_id and changing_password):
             if self.send_activation_code_on_email():
                 return ok_response(message=f'Mail sent successfully!')
             else:
@@ -266,6 +282,62 @@ class User(models.Model):
         ):
             return True
         return False
+
+    def change_password(self, password):
+        try:
+            self.admin_password = password
+            self.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def add_new_user(cls, data):
+        try:
+            user = User()
+            user.first_name = data['first_name']
+            user.last_name = data['last_name']
+            user.email = data['email']
+            user.address = data['address']
+            user.city = data['city']
+            user.phone = data['phone']
+            user.is_active = data['is_active']
+            user.birth_date = data['birth_date']
+            user.gender_id = data['gender_id']
+            user.role_id = data['role_id']
+            user.parent_mother_id = data['parent_mother']
+            user.parent_father_id = data['parent_father']
+            user.admin_password = data['password']
+            user.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+            user.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def edit_user(cls, data, user_id, requester):
+        user = User.get_user_by_id(user_id=user_id, requester=requester)
+        try:
+            user.first_name = data['first_name']
+            user.last_name = data['last_name']
+            user.email = data['email']
+            user.address = data['address']
+            user.city = data['city']
+            user.phone = data['phone']
+            user.is_active = data['is_active']
+            user.is_delete = data['is_deleted']
+            user.birth_date = data['birth_date']
+            user.gender_id = data['gender_id']
+            user.role_id = data['role_id']
+            user.parent_mother_id = data['parent_mother']
+            user.parent_father_id = data['parent_father']
+            user.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
 
     @classmethod
     def get_user_by_id(cls, user_id, requester, parent_id=None):
@@ -293,47 +365,38 @@ class User(models.Model):
         users = User.objects.filter()
         if 'is_deleted' in filters:
             try:
-                bool(int(data['is_deleted']))
+                int(data['is_deleted'])
+                if int(data['is_deleted']) in [0, 1]:
+                    users = users.filter(is_delete=data['is_deleted'])
             except ValueError as ex:
                 print(ex)
-                return []
-            users = users.filter(is_delete=data['is_deleted'])
         if 'is_active' in filters:
             try:
-                bool(int(data['is_active']))
+                int(data['is_active'])
+                if int(data['is_active']) in [0, 1]:
+                    users = users.filter(is_active=data['is_active'])
             except ValueError as ex:
                 print(ex)
-                return []
-            users = users.filter(is_active=data['is_active'])
-        if 'email' in filters:
-            users = users.filter(email__icontains=data['email'])
-        if 'address' in filters:
-            users = users.filter(addres__icontains=data['address'])
-        if 'city' in filters:
-            users = users.filter(city__icontains=data['city'])
-        if 'phone' in filters:
-            users = users.filter(phone__icontains=data['phone'])
-        if 'role' in filters:
+        if 'roleId' in filters:
             try:
-                int(data['role'])
+                int(data['roleId'])
+                if int(data['roleId']) > 0:
+                    users = users.filter(role=data['roleId'])
             except ValueError as ex:
                 print(ex)
-                return []
-            users = users.filter(role=data['role'])
-        if 'gender' in filters:
+        if 'genderId' in filters:
             try:
-                int(data['gender'])
+                int(data['genderId'])
+                if int(data['genderId']) > 0:
+                    users = users.filter(gender=data['genderId'])
             except ValueError as ex:
                 print(ex)
-                return []
-            users = users.filter(gender=data['gender'])
-        if 'birth_date' in filters:
+        if 'birthDate' in filters and data['birthDate'] != '':
             try:
-                datetime.strptime(data['birth_date'], "%Y-%m-%d").strftime("%Y-%m-%d")
+                datetime.strptime(data['birthDate'], "%Y-%m-%d").strftime("%Y-%m-%d")
+                users = users.filter(birth_date=data['birthDate'])
             except ValueError as ex:
                 print(ex)
-                return []
-            users = users.filter(birth_date=data['birth_date'])
         if requester not in ['Administrator', 'Professor']:
             return []
         if requester == 'Professor':
@@ -347,14 +410,81 @@ class User(models.Model):
             try:
                 limit = int(data['limit'])
                 if limit not in LIMIT_CHOICES:
-                    return []
+                    limit = 0
             except ValueError as ex:
                 print(ex)
+        if 'search' in filters:
+            search = data['search']
+            users = users.filter(
+                Q(phone__icontains=search) |
+                Q(address__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search)
+            )
+        users = users.order_by('id')
         if offset and limit and limit > offset:
             users = users[offset*limit:(offset*limit)+limit]
         elif not offset and limit and limit > offset:
             users = users[:offset+limit]
         return users.all()
+
+    @classmethod
+    def count_all_users(cls, data, requester):
+        filters = []
+        search = ''
+        if data:
+            for k, v in data.items():
+                filters.append(k)
+        users = User.objects.filter()
+        if 'is_deleted' in filters:
+            try:
+                int(data['is_deleted'])
+                if int(data['is_deleted']) in [0, 1]:
+                    users = users.filter(is_delete=data['is_deleted'])
+            except ValueError as ex:
+                print(ex)
+        if 'is_active' in filters:
+            try:
+                int(data['is_active'])
+                if int(data['is_active']) in [0, 1]:
+                    users = users.filter(is_active=data['is_active'])
+            except ValueError as ex:
+                print(ex)
+        if 'roleId' in filters:
+            try:
+                int(data['roleId'])
+                if int(data['roleId']) > 0:
+                    users = users.filter(role=data['roleId'])
+            except ValueError as ex:
+                print(ex)
+        if 'genderId' in filters:
+            try:
+                int(data['genderId'])
+                if int(data['genderId']) > 0:
+                    users = users.filter(gender=data['genderId'])
+            except ValueError as ex:
+                print(ex)
+        if 'birthDate' in filters and data['birthDate'] != '':
+            try:
+                datetime.strptime(data['birthDate'], "%Y-%m-%d").strftime("%Y-%m-%d")
+                users = users.filter(birth_date=data['birthDate'])
+            except ValueError as ex:
+                print(ex)
+        if requester not in ['Administrator', 'Professor']:
+            return []
+        if requester == 'Professor':
+            users = users.filter(role__name__in=['Professor', 'Student', 'Parent'])
+        if 'search' in filters:
+            search = data['search']
+            users = users.filter(
+                Q(phone__icontains=search) |
+                Q(address__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search)
+            )
+        return users.count()
 
     def delete(self, using=None, keep_parents=False):
         """
@@ -372,7 +502,7 @@ class User(models.Model):
         This method will activate user
         :return:
         """
-        if django.utils.timezone.now() <= self.expired_activation_code:
+        if (django.utils.timezone.now() + timedelta(hours=1)) <= self.expired_activation_code:
             self.is_active = True
             self.activation_code = None
             self.expired_activation_code = None
@@ -385,15 +515,14 @@ class User(models.Model):
             print(ex)
             return False
 
-    def deactivate_user(self, user_id=None):
+    def deactivate_user(self):
         """
         This method will deactivate user
         :return:
         """
         self.is_active = False
-        if user_id == self.id:
-            self.activation_code = self.create_activation_code(10)
-            self.expired_activation_code = django.utils.timezone.now() + timedelta(minutes=1)
+        self.activation_code = self.create_activation_code(10)
+        self.expired_activation_code = django.utils.timezone.now() + timedelta(hours=2)
         try:
             self.save()
             return True
