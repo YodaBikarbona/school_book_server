@@ -50,3 +50,32 @@ class Validation:
         except Exception as ex:
             print(ex)
             return False
+
+    @classmethod
+    def edit_role_validation(cls, data):
+        try:
+            data['name']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def add_school_subject_validation(cls, data):
+        try:
+            data['name']
+            data['is_active']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def edit_school_subject_validation(cls, data):
+        try:
+            data['name']
+            data['is_active']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False

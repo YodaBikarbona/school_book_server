@@ -36,7 +36,9 @@ class Role(models.Model):
 
     @classmethod
     def get_all_roles(cls, limit, offset):
-        roles = Role.objects.filter().all()
+        roles = Role.objects.filter().order_by('id').all()
+        if limit not in LIMIT_CHOICES:
+            limit = 0
         if offset and limit and limit > offset:
             roles = roles[offset*limit:(offset*limit)+limit]
         elif not offset and limit and limit > offset:
@@ -65,6 +67,15 @@ class Role(models.Model):
     @classmethod
     def get_role_by_id(cls, role_id):
         return Role.objects.filter(id=role_id).first()
+
+    def edit_role(self, data):
+        try:
+            self.name = data['name']
+            self.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
 
 
 class Gender(models.Model):
@@ -166,8 +177,16 @@ class User(models.Model):
     )
 
     # Relationships
-    gender = models.ForeignKey(Gender, on_delete=models.CASCADE)
-    role = models.ForeignKey(Role, on_delete=models.CASCADE)
+    gender = models.ForeignKey(
+        Gender,
+        null=True,
+        on_delete=models.SET_NULL
+    )
+    role = models.ForeignKey(
+        Role,
+        null=True,
+        on_delete=models.SET_NULL
+    )
     parent_mother = models.ForeignKey(
         'self',
         on_delete=models.SET_NULL,
@@ -186,7 +205,7 @@ class User(models.Model):
     )
 
     def __str__(self):
-        return f'{self.first_name} {self.last_name} {self.email if self.email else None} {self.role.name}'
+        return f"{self.first_name} {self.last_name} {self.email if self.email else None} {self.role.name if self.role else ''}"
 
     @staticmethod
     def set_password(salt, password):
@@ -235,7 +254,7 @@ class User(models.Model):
             self.salt = None
             if not self.parent_mother or not self.parent_father:
                 raise ValidationError(f'One of parent fields is required!')
-        elif self.role.name in ['Administrator', 'Parent', 'Professor']:
+        elif self.role.name in ['Administrator', 'Parent', 'Professor', 'test']:
             if not self.admin_password and not self.password and not self.email and not self.phone and not self.salt:
                 raise ValidationError(f'Fields admin_password, password, email, phone and salt are required!')
             if not self.id:
@@ -316,24 +335,22 @@ class User(models.Model):
             print(ex)
             return False
 
-    @classmethod
-    def edit_user(cls, data, user_id, requester):
-        user = User.get_user_by_id(user_id=user_id, requester=requester)
+    def edit_user(self, data):
         try:
-            user.first_name = data['first_name']
-            user.last_name = data['last_name']
-            user.email = data['email']
-            user.address = data['address']
-            user.city = data['city']
-            user.phone = data['phone']
-            user.is_active = data['is_active']
-            user.is_delete = data['is_deleted']
-            user.birth_date = data['birth_date']
-            user.gender_id = data['gender_id']
-            user.role_id = data['role_id']
-            user.parent_mother_id = data['parent_mother']
-            user.parent_father_id = data['parent_father']
-            user.save()
+            self.first_name = data['first_name']
+            self.last_name = data['last_name']
+            self.email = data['email']
+            self.address = data['address']
+            self.city = data['city']
+            self.phone = data['phone']
+            self.is_active = data['is_active']
+            self.is_delete = data['is_deleted']
+            self.birth_date = data['birth_date']
+            self.gender_id = data['gender_id']
+            self.role_id = data['role_id']
+            self.parent_mother_id = data['parent_mother']
+            self.parent_father_id = data['parent_father']
+            self.save()
             return True
         except Exception as ex:
             print(ex)
@@ -613,6 +630,21 @@ class SchoolClass(models.Model):
     def __str__(self):
         return f'{self.name} {self.school_year}'
 
+    @classmethod
+    def get_all_school_classes(cls, limit, offset):
+        school_classes = SchoolClass.objects.filter().order_by('-id').all()
+        if limit not in LIMIT_CHOICES:
+            limit = 0
+        if offset and limit and limit > offset:
+            school_classes = school_classes[offset * limit:(offset * limit) + limit]
+        elif not offset and limit and limit > offset:
+            school_classes = school_classes[:offset + limit]
+        return school_classes
+
+    @classmethod
+    def count_school_classes(cls):
+        return SchoolClass.objects.filter().count()
+
 
 class SchoolClassProfessor(models.Model):
     created = models.DateTimeField(default=django.utils.timezone.now)
@@ -701,8 +733,49 @@ class SchoolSubject(models.Model):
         return f"{self.name} {'(Activated)' if self.is_active else '(Deactivated)'}"
 
     @classmethod
-    def get_all_school_subjects(cls):
-        return SchoolSubject.objects.filter().all()
+    def get_all_school_subjects(cls, limit, offset):
+        school_subjects = SchoolSubject.objects.filter().order_by('id').all()
+        if limit not in LIMIT_CHOICES:
+            limit = 0
+        if offset and limit and limit > offset:
+            school_subjects = school_subjects[offset*limit:(offset*limit)+limit]
+        elif not offset and limit and limit > offset:
+            school_subjects = school_subjects[:offset+limit]
+        return school_subjects
+
+    @classmethod
+    def count_school_subject(cls):
+        return SchoolSubject.objects.filter().count()
+
+    @classmethod
+    def add_new_school_subject(cls, data):
+        try:
+            school_subject = SchoolSubject()
+            school_subject.name = data['name']
+            school_subject.is_active = data['is_active']
+            school_subject.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+            school_subject.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    def delete_school_subject(self):
+        self.delete()
+
+    @classmethod
+    def get_school_subject_by_id(cls, school_subject_id):
+        return SchoolSubject.objects.filter(id=school_subject_id).first()
+
+    def edit_school_subject(self, data):
+        try:
+            self.name = data['name']
+            self.is_active = data['is_active']
+            self.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
 
 
 class ClassRoomSchoolSubject(models.Model):

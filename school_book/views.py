@@ -11,7 +11,8 @@ from school_book.models import (
     Event,
     Absence,
     Role,
-    Gender
+    Gender,
+    SchoolClass
 )
 from school_book.helper import (
     ok_response,
@@ -27,7 +28,8 @@ from school_book.serializers import (
     EventSerializer,
     AbsenceSerializer,
     RoleSerializer,
-    GenderSerializer
+    GenderSerializer,
+    SchoolClassSerializer
 )
 from django.http.response import JsonResponse
 import json
@@ -38,7 +40,7 @@ import django
 @api_view(['GET'])
 def get_user_by_id(request, user_id):
     """
-    This method will get user, depends on filters.
+    This method will get a user by user id
     :param request:
     :param user_id:
     :return: message, data
@@ -76,7 +78,7 @@ def get_user_by_id(request, user_id):
 @api_view(['GET'])
 def get_users(request):
     """
-    This method will get users, depends on filters.
+    This method will get all the users, depends on the filters.
     :param request:
     :param query_string:
     :return: message, data
@@ -115,7 +117,7 @@ def get_users(request):
 @api_view(['DELETE'])
 def delete_user(request, user_id):
     """
-    This method will set is_delete flag to True. This method will never delete user from database
+    This method will set is_delete flag to True. This method will never delete the user from database
     :param request:
     :param user_id:
     :return: message
@@ -142,7 +144,7 @@ def delete_user(request, user_id):
 @api_view(['PATCH'])
 def activate_or_deactivate_user(request, user_id):
     """
-    This method will set is_active flag to True or False, depends on last state.
+    This method will set is_active flag to True or False, depends on the last state.
     :param request:
     :param user_id:
     :param activate_flag:
@@ -185,7 +187,7 @@ def activate_or_deactivate_user(request, user_id):
 @api_view(['PATCH'])
 def activate_user(request):
     """
-    This method will set is_active flag to True through login activation modal form
+    This method will set is_active flag to True through the login activation modal form
     :param request:
     :body_param email, code:
     :return:
@@ -211,7 +213,8 @@ def login_user(request):
     """
     Login method
     :param request:
-    :return:
+    :param_body: email, password
+    :return: user data
     """
     body = request.data
     if 'email' not in body and 'password' not in body:
@@ -283,11 +286,127 @@ def get_all_school_subjects(request):
     user = User.objects.filter(id=requester_user.id).first()
     if not user:
         return error_handler(error_status=404, message=f'Not found!')
-    school_subjects = SchoolSubject.get_all_school_subjects()
+    query_string = request.GET
+    limit = query_string['limit'] if 'limit' in query_string else None
+    offset = query_string['offset'] if 'offset' in query_string else None
+    limit, offset = check_valid_limit_and_offset(limit=limit, offset=offset)
+    school_subjects = SchoolSubject.get_all_school_subjects(limit=limit, offset=offset)
     school_subjects = SchoolSubjectSerializer(many=True, instance=school_subjects).data
+    school_subjects_number = SchoolSubject.count_school_subject()
     for school_subject in school_subjects:
+        school_subject['school_subjects_number'] = school_subjects_number
         school_subject = dict(school_subject)
-    return ok_response(message='Children', additional_data=school_subjects)
+    return ok_response(message='School subjects', additional_data=school_subjects)
+
+
+@api_view(['POST'])
+def add_school_subject(request):
+    """
+    This method will add a new subject
+    :param request:
+    :param_body: name, is_active
+    :return: message
+    """
+    body = request.data
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    if not Validation.add_school_subject_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not SchoolSubject.add_new_school_subject(data=body):
+        return error_handler(error_status=403, message='School subject is not added!')
+    return ok_response(message='School subject is successfully added!')
+
+
+@api_view(['POST'])
+def edit_school_subject(request, school_subject_id):
+    """
+    This method will edit an old subject
+    :param request:
+    :param school_subject_id:
+    :param_body: name, is_active
+    :return: message
+    """
+    body = request.data
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    if not Validation.edit_school_subject_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    school_subject = SchoolSubject.get_school_subject_by_id(school_subject_id=school_subject_id)
+    if not school_subject:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not school_subject.edit_school_subject(data=body):
+        return error_handler(error_status=403, message='School subject is not edited!')
+    return ok_response(message='School subject is successfully edited!')
+
+
+@api_view(['DELETE'])
+def delete_school_subject(request, school_subject_id):
+    """
+    This method will delete an old school subject
+    :param request:
+    :param school_subject_id:
+    :return: message
+    """
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    school_subject = SchoolSubject.get_school_subject_by_id(school_subject_id=school_subject_id)
+    if not school_subject:
+        return error_handler(error_status=404, message=f"School subject doesn't exist!")
+    school_subject.delete_school_subject()
+    return ok_response(message='School subject is successfully deleted!')
+
+
+@api_view(['GET'])
+def get_all_school_classes(request):
+    """
+    This method will get all school classes
+    :param request:
+    :return: list of school classes
+    """
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    user = User.objects.filter(id=requester_user.id).first()
+    if not user:
+        return error_handler(error_status=404, message=f'Not found!')
+    query_string = request.GET
+    limit = query_string['limit'] if 'limit' in query_string else None
+    offset = query_string['offset'] if 'offset' in query_string else None
+    limit, offset = check_valid_limit_and_offset(limit=limit, offset=offset)
+    school_classes = SchoolClass.get_all_school_classes(limit=limit, offset=offset)
+    school_classes = SchoolClassSerializer(many=True, instance=school_classes).data
+    school_classes_number = SchoolClass.count_school_classes()
+    for school_class in school_classes:
+        school_class['school_classes_number'] = school_classes_number
+        school_subject = dict(school_class)
+    return ok_response(message='School classes', additional_data=school_classes)
 
 
 @api_view(['GET'])
@@ -329,7 +448,7 @@ def get_all_student_grades(request, user_id, school_subject_id):
 @api_view(['GET'])
 def get_all_events_by_parent_id(request):
     """
-    This method will get all events by parent_id
+    This method will get all the events by parent_id
     :param request:
     :return: list of events
     """
@@ -360,7 +479,7 @@ def get_all_events_by_parent_id(request):
 @api_view(['GET'])
 def get_all_student_absences(request, user_id, school_subject_id, is_justified):
     """
-    This method will get all student absences
+    This method will get all the student absences
     :param request:
     :param user_id:
     :param school_subject_id:
@@ -407,7 +526,7 @@ def get_all_student_absences(request, user_id, school_subject_id, is_justified):
 @api_view(['GET'])
 def get_all_student_absences_number(request, user_id, school_subject_id):
     """
-    This method will count all student absences
+    This method will count all the student absences
     :param request:
     :param user_id:
     :param school_subject_id:
@@ -438,7 +557,7 @@ def get_all_student_absences_number(request, user_id, school_subject_id):
 @api_view(['GET'])
 def get_all_roles(request):
     """
-    This method will get all roles
+    This method will get all the roles
     :param request:
     :return: list of roles
     """
@@ -455,8 +574,6 @@ def get_all_roles(request):
     limit = query_string['limit'] if 'limit' in query_string else None
     offset = query_string['offset'] if 'offset' in query_string else None
     limit, offset = check_valid_limit_and_offset(limit=limit, offset=offset)
-    # if not check_valid_limit_and_offset(limit=limit, offset=offset):
-    #     return error_handler(error_status=400, message=f'Bad data!')
     roles = Role.get_all_roles(limit=limit, offset=offset)
     roles = RoleSerializer(many=True, instance=roles).data
     roles_number = Role.count_roles()
@@ -469,7 +586,7 @@ def get_all_roles(request):
 @api_view(['POST'])
 def add_new_role(request):
     """
-    This method will add new role
+    This method will add a new role
     :param request:
     :param_body: roleName
     :return: message
@@ -494,7 +611,7 @@ def add_new_role(request):
 @api_view(['DELETE'])
 def delete_role(request, role_id):
     """
-    This method will delete old role
+    This method will delete an old role
     :param request:
     :param role_id:
     :param_body: roleName
@@ -519,7 +636,7 @@ def delete_role(request, role_id):
 @api_view(['GET'])
 def get_all_genders(request):
     """
-    This method will get all genders
+    This method will get all the genders
     :param request:
     :return: list of roles
     """
@@ -542,7 +659,7 @@ def get_all_genders(request):
 @api_view(['POST'])
 def add_new_user(request):
     """
-    This method will add new user
+    This method will add a new user
     :param request:
     :param_body: first_name, last_name, email, roleId, genderId, address, city, password,
     phone, is_active, birth_date, parent_mother, parent_father
@@ -568,7 +685,7 @@ def add_new_user(request):
 @api_view(['POST'])
 def edit_user(request, user_id):
     """
-    This method will edit old user
+    This method will edit an old user
     :param request:
     :param user_id:
     :param_body: first_name, last_name, email, roleId, genderId, address, city,
@@ -587,7 +704,10 @@ def edit_user(request, user_id):
         return error_handler(error_status=403, message='Forbidden permission!')
     if not requester_user:
         return error_handler(error_status=404, message=f'Not found!')
-    if not User.edit_user(data=body, user_id=user_id, requester=requester_user.role.name):
+    user = User.get_user_by_id(user_id=user_id, requester=requester_user.role.name)
+    if not user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not user.edit_user(data=body):
         return error_handler(error_status=403, message=f'User is not edited!')
     return ok_response(message='User is successfully edited!')
 
@@ -595,7 +715,7 @@ def edit_user(request, user_id):
 @api_view(['PATCH'])
 def change_user_password(request, user_id):
     """
-    This method will change user password through admin panel
+    This method will change user's password through admin panel
     :param request:
     :param user_id:
     :param_body: password
@@ -619,3 +739,32 @@ def change_user_password(request, user_id):
     if not user.change_password(password=body['password']):
         return error_handler(error_status=403, message=f'Password is not changed!')
     return ok_response(message='Password is successfully changed!')
+
+
+@api_view(['PATCH'])
+def edit_role(request, role_id):
+    """
+    This method will change a role (name)
+    :param request:
+    :param role_id:
+    :param_body: name
+    :return: message
+    """
+    body = request.data
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    if not Validation.edit_role_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    role = Role.get_role_by_id(role_id=role_id)
+    if not role:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not role.edit_role(data=body):
+        return error_handler(error_status=403, message=f'Role is not changed!')
+    return ok_response(message='Role is successfully changed!')
