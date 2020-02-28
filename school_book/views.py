@@ -805,8 +805,6 @@ def get_school_class_members(request, school_class_id):
     professors = SchoolCLassProfessorsSerializer(many=True, instance=professors).data
     students = SchoolCLassStudentsSerializer(many=True, instance=students).data
     users_number = SchoolClass.count_members_by_school_class_id(school_class_id=school_class_id)
-    # users = SchoolClass.get_members_by_school_class_id(school_class_id=school_class_id, limit=limit, offset=offset)
-    # users = UserSerializer(many=True, instance=users).data
     users_json = []
     for p in professors:
         p['users_number'] = users_number
@@ -826,13 +824,4 @@ def get_school_class_members(request, school_class_id):
         s['student']['parent_mother'] = dict(s['student']['parent_mother']) if s['student']['parent_mother'] else {}
         s['student']['parent_father'] = dict(s['student']['parent_father']) if s['student']['parent_father'] else {}
         users_json.append(s)
-    # users_number = SchoolClass.count_members_by_school_class_id(school_class_id=school_class_id)
-    # for u in users:
-    #     u['users_number'] = users_number
-    #     u = dict(u)
-    #     u['role'] = dict(u['role'])
-    #     u['gender'] = dict(u['gender'])
-    #     u['parent_mother'] = dict(u['parent_mother']) if u['parent_mother'] else {}
-    #     u['parent_father'] = dict(u['parent_father']) if u['parent_father'] else {}
-    #     users_json.append(u)
     return ok_response('Users', additional_data=users_json)
