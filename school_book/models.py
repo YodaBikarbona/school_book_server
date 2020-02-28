@@ -645,6 +645,31 @@ class SchoolClass(models.Model):
     def count_school_classes(cls):
         return SchoolClass.objects.filter().count()
 
+    @classmethod
+    def get_members_by_school_class_id(cls, school_class_id, limit, offset):
+        professors = SchoolClassProfessor.objects.prefetch_related('professor').filter(
+            school_class_id=school_class_id
+        ).all()
+        students = SchoolClassStudent.objects.prefetch_related('student').filter(
+            school_class_id=school_class_id
+        ).all()
+        # professors = [m.professor for m in professors]
+        # students = [m.student for m in students]
+        # members = professors + students
+        # if limit not in LIMIT_CHOICES:
+        #     limit = 0
+        # if offset and limit and limit > offset:
+        #     members = members[offset*limit:(offset*limit)+limit]
+        # elif not offset and limit and limit > offset:
+        #     members = members[:offset+limit]
+        return professors, students
+
+    @classmethod
+    def count_members_by_school_class_id(cls, school_class_id):
+        professors_number = SchoolClassProfessor.objects.filter(school_class_id=school_class_id).count()
+        students_number = SchoolClassStudent.objects.filter(school_class_id=school_class_id).count()
+        return professors_number + students_number
+
 
 class SchoolClassProfessor(models.Model):
     created = models.DateTimeField(default=django.utils.timezone.now)

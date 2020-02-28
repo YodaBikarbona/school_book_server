@@ -29,7 +29,9 @@ from school_book.serializers import (
     AbsenceSerializer,
     RoleSerializer,
     GenderSerializer,
-    SchoolClassSerializer
+    SchoolClassSerializer,
+    SchoolCLassProfessorsSerializer,
+    SchoolCLassStudentsSerializer
 )
 from django.http.response import JsonResponse
 import json
@@ -324,7 +326,7 @@ def add_school_subject(request):
     return ok_response(message='School subject is successfully added!')
 
 
-@api_view(['POST'])
+@api_view(['PUT'])
 def edit_school_subject(request, school_subject_id):
     """
     This method will edit an old subject
@@ -768,3 +770,69 @@ def edit_role(request, role_id):
     if not role.edit_role(data=body):
         return error_handler(error_status=403, message=f'Role is not changed!')
     return ok_response(message='Role is successfully changed!')
+
+
+@api_view(['GET'])
+def get_school_class_members(request, school_class_id):
+    """
+    This method will get all the users by class_id, the users are part of some class.
+    :param request:
+    :param school_class_id:
+    :return: message, data
+    """
+    if 'Authorization' not in request.headers:
+        return error_handler(error_status=401, message=f'Security token is missing!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    user = User.get_user_by_email(email=decoded_security_token['email'])
+    if not user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if decoded_security_token['role'] not in ['Administrator', 'Professor']:
+        if decoded_security_token['role'] == 'Professor':
+            if user.security_token() != security_token:
+                return error_handler(error_status=403, message='Forbidden permission!')
+        else:
+            return error_handler(error_status=403, message='Forbidden permission!')
+    query_string = request.GET
+    limit = query_string['limit'] if 'limit' in query_string else None
+    offset = query_string['offset'] if 'offset' in query_string else None
+    limit, offset = check_valid_limit_and_offset(limit=limit, offset=offset)
+    professors, students = SchoolClass.get_members_by_school_class_id(
+        school_class_id=school_class_id,
+        limit=limit,
+        offset=offset
+    )
+    professors = SchoolCLassProfessorsSerializer(many=True, instance=professors).data
+    students = SchoolCLassStudentsSerializer(many=True, instance=students).data
+    users_number = SchoolClass.count_members_by_school_class_id(school_class_id=school_class_id)
+    # users = SchoolClass.get_members_by_school_class_id(school_class_id=school_class_id, limit=limit, offset=offset)
+    # users = UserSerializer(many=True, instance=users).data
+    users_json = []
+    for p in professors:
+        p['users_number'] = users_number
+        p = dict(p)
+        p['professor'] = dict(p['professor'])
+        p['professor']['role'] = dict(p['professor']['role'])
+        p['professor']['gender'] = dict(p['professor']['gender'])
+        p['professor']['parent_mother'] = dict(p['professor']['parent_mother']) if p['professor']['parent_mother'] else {}
+        p['professor']['parent_father'] = dict(p['professor']['parent_father']) if p['professor']['parent_father'] else {}
+        users_json.append(p)
+    for s in students:
+        s['users_number'] = users_number
+        s = dict(s)
+        s['student'] = dict(s['student'])
+        s['student']['role'] = dict(s['student']['role'])
+        s['student']['gender'] = dict(s['student']['gender'])
+        s['student']['parent_mother'] = dict(s['student']['parent_mother']) if s['student']['parent_mother'] else {}
+        s['student']['parent_father'] = dict(s['student']['parent_father']) if s['student']['parent_father'] else {}
+        users_json.append(s)
+    # users_number = SchoolClass.count_members_by_school_class_id(school_class_id=school_class_id)
+    # for u in users:
+    #     u['users_number'] = users_number
+    #     u = dict(u)
+    #     u['role'] = dict(u['role'])
+    #     u['gender'] = dict(u['gender'])
+    #     u['parent_mother'] = dict(u['parent_mother']) if u['parent_mother'] else {}
+    #     u['parent_father'] = dict(u['parent_father']) if u['parent_father'] else {}
+    #     users_json.append(u)
+    return ok_response('Users', additional_data=users_json)

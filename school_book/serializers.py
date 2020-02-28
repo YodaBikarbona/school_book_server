@@ -7,7 +7,9 @@ from school_book.models import (
     SchoolClass,
     Grade,
     Event,
-    Absence
+    Absence,
+    SchoolClassStudent,
+    SchoolClassProfessor
 )
 from rest_framework import serializers
 
@@ -154,5 +156,35 @@ class AbsenceSerializer(serializers.HyperlinkedModelSerializer):
             'professor',
             'student',
             'school_subject',
+            'school_class'
+        ]
+
+
+class SchoolCLassProfessorsSerializer(serializers.HyperlinkedModelSerializer):
+    professor = UserSerializer(many=False)
+    school_class = SchoolClassSerializer(many=False)
+
+    class Meta:
+        model = SchoolClassProfessor
+        fields = [
+            'id',
+            'created',
+            'is_active',
+            'professor',
+            'school_class'
+        ]
+
+
+class SchoolCLassStudentsSerializer(serializers.HyperlinkedModelSerializer):
+    student = UserSerializer(many=False)
+    school_class = SchoolClassSerializer(many=False)
+
+    class Meta:
+        model = SchoolClassStudent
+        fields = [
+            'id',
+            'created',
+            'is_active',
+            'student',
             'school_class'
         ]
