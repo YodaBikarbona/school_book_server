@@ -51,3 +51,22 @@ EMAIL_HOST_USER = 'email' # This should be an email (account) that will send the
 EMAIL_HOST_PASSWORD = 'password' # The email's (account's) password
 EMAIL_PORT = 'emailport' # The email's port e.g for gmail it should be '587', for the other domains you should find the ports on google.
 ```
+
+## Make the database migrations and create the superuser
+After you configure the database and email configurations you need make the database migrations
+
+Go to the terminal and type this command
+```bash
+python3 manage.py migrate
+```
+
+After that you should create the superuser (for django admin) typing this command
+```bash
+python3 manage.py createsuperuser
+```
+Username: Your django admin username
+Email address: Your django admin email
+Password: Your django admin password
+Password (again): Confirm your password
+If you created successfully the superuser your will get this message
+Superuser created successfully.
