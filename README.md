@@ -79,7 +79,7 @@ Superuser created successfully.
 ## Run the server
 After all previously steps you can run server using terminal command
 ```bash
-python manage.py runserver
+python3 manage.py runserver
 ```
 
 Or you can make the configuration in your IDE/Editor (I recommend PyCharm Professional)
@@ -88,7 +88,7 @@ After running the server you should see this in the terminal
 
 Starting development server at http://127.0.0.1:8000/ (this is in my case)
 
-Just click on the link or copy link and paste it in your browser
+Just click on the link or copy the link and paste it in your browser
 
 To see django admin you need add this in your url admin/ and use your data that you use to create the superuser.
 
