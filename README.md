@@ -65,8 +65,13 @@ After that you should create the superuser (for django admin) typing this comman
 python3 manage.py createsuperuser
 ```
 Username: Your django admin username
+
 Email address: Your django admin email
+
 Password: Your django admin password
+
 Password (again): Confirm your password
+
 If you created successfully the superuser your will get this message
+
 Superuser created successfully.
