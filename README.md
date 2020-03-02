@@ -24,10 +24,10 @@ After you activated the enviroment install the packages from requirements.txt fi
 pip3 install -r requirements.txt
 ```
 
-## Database settings
-After instalation you need configure a postgres database
+## Database configuration
+After the instalation you need configure a postgres database
 
-Open settings.py through some editor
+Open settings.py through some editor and make some changes
 ```python
 DATABASES = {
     'default': {
@@ -39,4 +39,15 @@ DATABASES = {
         'POST': 'databaseport' # Database port e.g. 5050 if you test this local you don't need port it could be empty ''
     }
 }
+```
+
+## Email configuration
+After the database configuration you need make an email configuration
+
+Open settings.py through some editor and make some changes
+```python
+EMAIL_HOST = 'emailhost' # E.g. for gmail it should be 'smtp.gmail.com', for the other domains you should find the host on google.
+EMAIL_HOST_USER = 'email' # This should be an email (account) that will send the emails to the users
+EMAIL_HOST_PASSWORD = 'password' # The email's (account's) password
+EMAIL_PORT = 'emailport' # The email's port e.g for gmail it should be '587', for the other domains you should find the ports on google.
 ```
