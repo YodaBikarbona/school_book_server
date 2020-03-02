@@ -1,26 +1,27 @@
-from django.db import models
+import random
+import string
+from datetime import (
+    datetime,
+    timedelta
+)
 import django
-from school_book.helper import (
+from django.db import models
+from django.db.models import Q
+from django.core.validators import ValidationError
+from django.core.mail import send_mail
+from jose import jwt
+from .helper import (
     new_salt,
     new_psw,
     ok_response,
     error_handler
 )
-from school_book.constants import (
+from .constants import (
     OFFSET,
     LIMIT,
     LIMIT_CHOICES,
     secret_key_word
 )
-from django.db.models import Q
-from jose import jwt
-from datetime import datetime
-from django.core.validators import ValidationError
-import random
-import string
-from datetime import datetime, timedelta
-from django.core.mail import send_mail
-# Create your models here.
 
 
 class Role(models.Model):

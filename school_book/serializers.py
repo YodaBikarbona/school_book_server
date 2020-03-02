@@ -1,5 +1,5 @@
-# from django.contrib.auth.models import User, Group
-from school_book.models import (
+from rest_framework import serializers
+from .models import (
     User,
     Role,
     Gender,
@@ -11,7 +11,6 @@ from school_book.models import (
     SchoolClassStudent,
     SchoolClassProfessor
 )
-from rest_framework import serializers
 
 
 class RoleSerializer(serializers.HyperlinkedModelSerializer):

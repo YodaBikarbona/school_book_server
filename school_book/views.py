@@ -1,10 +1,6 @@
-from django.shortcuts import render
-
-# Create your views here.
-
-from django.http import HttpResponse
-
-from school_book.models import (
+import django
+from rest_framework.decorators import api_view
+from .models import (
     User,
     SchoolSubject,
     Grade,
@@ -14,13 +10,13 @@ from school_book.models import (
     Gender,
     SchoolClass
 )
-from school_book.helper import (
+from .helper import (
     ok_response,
     error_handler,
     check_valid_limit_and_offset
 )
-from school_book.validators import Validation
-from school_book.serializers import (
+from .validators import Validation
+from .serializers import (
     UserSerializer,
     ParentSerializer,
     SchoolSubjectSerializer,
@@ -33,10 +29,6 @@ from school_book.serializers import (
     SchoolCLassProfessorsSerializer,
     SchoolCLassStudentsSerializer
 )
-from django.http.response import JsonResponse
-import json
-from rest_framework.decorators import api_view
-import django
 
 
 @api_view(['GET'])
@@ -407,7 +399,7 @@ def get_all_school_classes(request):
     school_classes_number = SchoolClass.count_school_classes()
     for school_class in school_classes:
         school_class['school_classes_number'] = school_classes_number
-        school_subject = dict(school_class)
+        school_class = dict(school_class)
     return ok_response(message='School classes', additional_data=school_classes)
 
 

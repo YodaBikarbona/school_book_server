@@ -1,11 +1,14 @@
-from django.utils import timezone
-from random import choice, random
-from hashlib import sha512
-import django
-from django.http import HttpResponse
 import json
 import string
-from school_book.constants import LIMIT_CHOICES
+from random import (
+    choice,
+    random
+)
+from hashlib import sha512
+import django
+from django.utils import timezone
+from django.http import HttpResponse
+from .constants import LIMIT_CHOICES
 
 
 def now():
