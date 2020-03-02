@@ -13,7 +13,8 @@ from .models import (
 from .helper import (
     ok_response,
     error_handler,
-    check_valid_limit_and_offset
+    check_valid_limit_and_offset,
+    authorization,
 )
 from .validators import Validation
 from .serializers import (
@@ -32,6 +33,7 @@ from .serializers import (
 
 
 @api_view(['GET'])
+@authorization
 def get_user_by_id(request, user_id):
     """
     This method will get a user by user id
@@ -39,8 +41,6 @@ def get_user_by_id(request, user_id):
     :param user_id:
     :return: message, data
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -70,6 +70,7 @@ def get_user_by_id(request, user_id):
 
 
 @api_view(['GET'])
+@authorization
 def get_users(request):
     """
     This method will get all the users, depends on the filters.
@@ -77,8 +78,6 @@ def get_users(request):
     :param query_string:
     :return: message, data
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -109,6 +108,7 @@ def get_users(request):
 
 
 @api_view(['DELETE'])
+@authorization
 def delete_user(request, user_id):
     """
     This method will set is_delete flag to True. This method will never delete the user from database
@@ -116,8 +116,6 @@ def delete_user(request, user_id):
     :param user_id:
     :return: message
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     try:
@@ -136,6 +134,7 @@ def delete_user(request, user_id):
 
 
 @api_view(['PATCH'])
+@authorization
 def activate_or_deactivate_user(request, user_id):
     """
     This method will set is_active flag to True or False, depends on the last state.
@@ -145,8 +144,6 @@ def activate_or_deactivate_user(request, user_id):
     :body_param is_active:
     :return:
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -234,14 +231,13 @@ def login_user(request):
 
 
 @api_view(['GET'])
+@authorization
 def get_children_by_parent_id(request):
     """
     This method will get all children by parent_id
     :param request:
     :return: list of children
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -262,14 +258,13 @@ def get_children_by_parent_id(request):
 
 
 @api_view(['GET'])
+@authorization
 def get_all_school_subjects(request):
     """
     This method will get all school subjects
     :param request:
     :return: list of school subjects
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -294,6 +289,7 @@ def get_all_school_subjects(request):
 
 
 @api_view(['POST'])
+@authorization
 def add_school_subject(request):
     """
     This method will add a new subject
@@ -302,8 +298,6 @@ def add_school_subject(request):
     :return: message
     """
     body = request.data
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     if not Validation.add_school_subject_validation(data=body):
         return error_handler(error_status=400, message=f'Wrong data!')
     security_token = request.headers['Authorization']
@@ -319,6 +313,7 @@ def add_school_subject(request):
 
 
 @api_view(['PUT'])
+@authorization
 def edit_school_subject(request, school_subject_id):
     """
     This method will edit an old subject
@@ -328,8 +323,6 @@ def edit_school_subject(request, school_subject_id):
     :return: message
     """
     body = request.data
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     if not Validation.edit_school_subject_validation(data=body):
         return error_handler(error_status=400, message=f'Wrong data!')
     security_token = request.headers['Authorization']
@@ -348,6 +341,7 @@ def edit_school_subject(request, school_subject_id):
 
 
 @api_view(['DELETE'])
+@authorization
 def delete_school_subject(request, school_subject_id):
     """
     This method will delete an old school subject
@@ -355,8 +349,6 @@ def delete_school_subject(request, school_subject_id):
     :param school_subject_id:
     :return: message
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -372,14 +364,13 @@ def delete_school_subject(request, school_subject_id):
 
 
 @api_view(['GET'])
+@authorization
 def get_all_school_classes(request):
     """
     This method will get all school classes
     :param request:
     :return: list of school classes
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -404,6 +395,7 @@ def get_all_school_classes(request):
 
 
 @api_view(['GET'])
+@authorization
 def get_all_student_grades(request, user_id, school_subject_id):
     """
     This method will get all student grades
@@ -412,8 +404,6 @@ def get_all_student_grades(request, user_id, school_subject_id):
     :param school_subject_id:
     :return: list of grades
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -440,14 +430,13 @@ def get_all_student_grades(request, user_id, school_subject_id):
 
 
 @api_view(['GET'])
+@authorization
 def get_all_events_by_parent_id(request):
     """
     This method will get all the events by parent_id
     :param request:
     :return: list of events
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -471,6 +460,7 @@ def get_all_events_by_parent_id(request):
 
 
 @api_view(['GET'])
+@authorization
 def get_all_student_absences(request, user_id, school_subject_id, is_justified):
     """
     This method will get all the student absences
@@ -480,8 +470,6 @@ def get_all_student_absences(request, user_id, school_subject_id, is_justified):
     :param is_justified:
     :return: list of absences
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -518,6 +506,7 @@ def get_all_student_absences(request, user_id, school_subject_id, is_justified):
 
 
 @api_view(['GET'])
+@authorization
 def get_all_student_absences_number(request, user_id, school_subject_id):
     """
     This method will count all the student absences
@@ -526,8 +515,6 @@ def get_all_student_absences_number(request, user_id, school_subject_id):
     :param school_subject_id:
     :return: number of justified and unjustified absences
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -549,14 +536,13 @@ def get_all_student_absences_number(request, user_id, school_subject_id):
 
 
 @api_view(['GET'])
+@authorization
 def get_all_roles(request):
     """
     This method will get all the roles
     :param request:
     :return: list of roles
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -578,6 +564,7 @@ def get_all_roles(request):
 
 
 @api_view(['POST'])
+@authorization
 def add_new_role(request):
     """
     This method will add a new role
@@ -586,8 +573,6 @@ def add_new_role(request):
     :return: message
     """
     body = request.data
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     if 'roleName' not in body:
         return error_handler(error_status=400, message=f'Wrong data!')
     security_token = request.headers['Authorization']
@@ -603,6 +588,7 @@ def add_new_role(request):
 
 
 @api_view(['DELETE'])
+@authorization
 def delete_role(request, role_id):
     """
     This method will delete an old role
@@ -611,8 +597,6 @@ def delete_role(request, role_id):
     :param_body: roleName
     :return: message
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -628,14 +612,13 @@ def delete_role(request, role_id):
 
 
 @api_view(['GET'])
+@authorization
 def get_all_genders(request):
     """
     This method will get all the genders
     :param request:
     :return: list of roles
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
@@ -651,6 +634,7 @@ def get_all_genders(request):
 
 
 @api_view(['POST'])
+@authorization
 def add_new_user(request):
     """
     This method will add a new user
@@ -660,8 +644,6 @@ def add_new_user(request):
     :return: message
     """
     body = request.data
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     if not Validation.add_user_validation(data=body):
         return error_handler(error_status=400, message=f'Wrong data!')
     security_token = request.headers['Authorization']
@@ -677,6 +659,7 @@ def add_new_user(request):
 
 
 @api_view(['POST'])
+@authorization
 def edit_user(request, user_id):
     """
     This method will edit an old user
@@ -687,8 +670,6 @@ def edit_user(request, user_id):
     :return: message
     """
     body = request.data
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     if not Validation.edit_user_validation(data=body):
         return error_handler(error_status=400, message=f'Wrong data!')
     security_token = request.headers['Authorization']
@@ -707,6 +688,7 @@ def edit_user(request, user_id):
 
 
 @api_view(['PATCH'])
+@authorization
 def change_user_password(request, user_id):
     """
     This method will change user's password through admin panel
@@ -716,8 +698,6 @@ def change_user_password(request, user_id):
     :return: message
     """
     body = request.data
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     if not Validation.admin_change_user_password_validation(data=body):
         return error_handler(error_status=400, message=f'Wrong data!')
     security_token = request.headers['Authorization']
@@ -736,6 +716,7 @@ def change_user_password(request, user_id):
 
 
 @api_view(['PATCH'])
+@authorization
 def edit_role(request, role_id):
     """
     This method will change a role (name)
@@ -745,8 +726,6 @@ def edit_role(request, role_id):
     :return: message
     """
     body = request.data
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     if not Validation.edit_role_validation(data=body):
         return error_handler(error_status=400, message=f'Wrong data!')
     security_token = request.headers['Authorization']
@@ -765,6 +744,7 @@ def edit_role(request, role_id):
 
 
 @api_view(['GET'])
+@authorization
 def get_school_class_members(request, school_class_id):
     """
     This method will get all the users by class_id, the users are part of some class.
@@ -772,8 +752,6 @@ def get_school_class_members(request, school_class_id):
     :param school_class_id:
     :return: message, data
     """
-    if 'Authorization' not in request.headers:
-        return error_handler(error_status=401, message=f'Security token is missing!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     user = User.get_user_by_email(email=decoded_security_token['email'])

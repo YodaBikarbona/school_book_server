@@ -94,3 +94,27 @@ def check_valid_limit_and_offset(limit, offset):
         except ValueError as ex:
             print(ex)
     return LIMIT, OFFSET
+
+
+def authorization(func):
+    """
+    Authorization decorator to check does user send security token from the client side.
+    :param func:
+    :return:
+    """
+    def wrapper(*args, **kwargs):
+        if 'Authorization' not in args[0].headers:
+            response = error_handler(error_status=401, message=f'Security token is missing!')
+        else:
+            response = func(*args, **kwargs)
+        return response
+    return wrapper
+
+
+# def check_does_requester_exist(security_token):
+#     security_token = security_token
+#     decoded_security_token = User.check_security_token(security_token=security_token)
+#     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+#     if not requester_user:
+#         return None
+#     return requester_user
