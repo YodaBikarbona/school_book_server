@@ -6,7 +6,7 @@ their children to learn harder and get the better results), absences etc.
 ## Instalation
 After cloning git repository open terminal and go into project
 ```bash
-cd school_book_server
+cd your_path_to_project/school_book_server
 ```
 
 Then set up the enviroment for python 3
@@ -19,7 +19,7 @@ After that activate the enviroment
 source venv/bin/activate
 ```
 
-After you activated the enviroment install the packages from requirements.txt file using [pip]
+After you activated the enviroment install the packages from requirements.txt file using [pip](https://pip.pypa.io/en/stable/)
 ```bash
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
