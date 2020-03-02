@@ -23,3 +23,20 @@ After you activated the enviroment install the packages from requirements.txt fi
 ```bash
 pip3 install -r requirements.txt
 ```
+
+## Database settings
+After instalation you need configure a postgres database
+
+Open settings.py through some editor
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'mydatabase', # Database name
+        'USER': 'mydatabaseuser', # Database user
+        'PASSWORD': 'mypassword', # Database password
+        'HOST': 'databasehost', # Database host e.g. for test this local you use 'localhost'
+        'POST': 'databaseport' # Database port e.g. 5050 if you test this local you don't need port it could be empty ''
+    }
+}
+```
