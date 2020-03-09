@@ -20,7 +20,8 @@ from .constants import (
     OFFSET,
     LIMIT,
     LIMIT_CHOICES,
-    secret_key_word
+    secret_key_word,
+    roles
 )
 
 
@@ -35,8 +36,8 @@ class Role(models.Model):
     def __str__(self):
         return self.name
 
-    @classmethod
-    def get_all_roles(cls, limit, offset):
+    @staticmethod
+    def get_all_roles(limit, offset):
         roles = Role.objects.filter().order_by('id').all()
         if limit not in LIMIT_CHOICES:
             limit = 0
@@ -46,15 +47,15 @@ class Role(models.Model):
             roles = roles[:offset+limit]
         return roles
 
-    @classmethod
-    def count_roles(cls):
+    @staticmethod
+    def count_roles():
         return Role.objects.filter().count()
 
     def delete_role(self):
         self.delete()
 
-    @classmethod
-    def add_new_role(cls, role_name):
+    @staticmethod
+    def add_new_role(role_name):
         try:
             role = Role()
             role.name = role_name
@@ -65,8 +66,8 @@ class Role(models.Model):
             print(ex)
             return False
 
-    @classmethod
-    def get_role_by_id(cls, role_id):
+    @staticmethod
+    def get_role_by_id(role_id):
         return Role.objects.filter(id=role_id).first()
 
     def edit_role(self, data):
@@ -90,8 +91,8 @@ class Gender(models.Model):
     def __str__(self):
         return f'{self.name}'
 
-    @classmethod
-    def get_all_genders(cls):
+    @staticmethod
+    def get_all_genders():
         return Gender.objects.filter().all()
 
 
@@ -158,7 +159,6 @@ class User(models.Model):
         blank=True,
         help_text=f"This field shouldn't be used through Django Admin! Non-required!")
     is_active = models.BooleanField(default=False)
-    is_delete = models.BooleanField(default=False)
     birth_date = models.DateField(
         null=False,
         help_text=f'This field is required!'
@@ -180,17 +180,15 @@ class User(models.Model):
     # Relationships
     gender = models.ForeignKey(
         Gender,
-        null=True,
-        on_delete=models.SET_NULL
+        on_delete=models.CASCADE
     )
     role = models.ForeignKey(
         Role,
-        null=True,
-        on_delete=models.SET_NULL
+        on_delete=models.CASCADE
     )
     parent_mother = models.ForeignKey(
         'self',
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         related_name='User.parent_mother+',
         null=True,
         blank=True,
@@ -198,7 +196,7 @@ class User(models.Model):
     )
     parent_father = models.ForeignKey(
         'self',
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         related_name='User.parent_father+',
         null=True,
         blank=True,
@@ -213,82 +211,64 @@ class User(models.Model):
         return new_psw(salt, password)
 
     def password_strength(self):
+        """
+        This method will check the password strength.
+        The password need have at least 8 symbols and less than 26 symbols.
+        The password need have at least one digit, at least one upper character, at least one lower character and
+        at least one special symbol. The password checking will stop when the all conditions are True, no need to check
+        the whole password, only if the last symbol ist one of the condition.
+        :return: True or False
+        """
         is_lower = False
         is_upper = False
         is_digit = False
         is_special_character = False
         spec = "@#$%^&+=.!/?*-"
-        if self.admin_password:
-            if (len(self.admin_password) < 8) and (len(self.admin_password) > 25):
-                return False
-            for let in self.admin_password:
-                try:
-                    let = int(let)
-                    is_digit = True
-                except Exception as ex:
-                    # print(ex)
-                    if let in spec:
-                        is_special_character = True
-                    else:
-                        if let.isalpha():
-                            if let == let.upper():
-                                is_upper = True
-                            if let == let.lower():
-                                is_lower = True
-            if is_upper and is_lower and is_special_character and is_digit:
+        if not self.admin_password:
+            return False
+        if (len(self.admin_password) < 8) and (len(self.admin_password) > 25):
+            return False
+        for let in self.admin_password:
+            try:
+                let = int(let)
+                is_digit = True
+            except Exception as ex:
+                # print(ex)
+                if let in spec:
+                    is_special_character = True
+                if let.isalpha() and let == let.upper():
+                    is_upper = True
+                if let.isalpha() and let == let.lower():
+                    is_lower = True
+            if is_digit and is_special_character and is_upper and is_lower:
                 return True
-            else:
-                return False
         return False
 
     def save(self, *args, **kwargs):
         """
         This method is override of main method!
         """
+        if self.role.name not in roles:
+            raise ValueError(f"Error! The role {self.role.name} doesn't exist inside roles constants!")
         existing_id = False
         changing_password = False
-        if self.role.name == 'Student':
-            self.admin_password = None
-            self.password = None
-            self.email = None
-            self.phone = None
-            self.salt = None
-            if not self.parent_mother or not self.parent_father:
-                raise ValidationError(f'One of parent fields is required!')
-        elif self.role.name in ['Administrator', 'Parent', 'Professor', 'test']:
+        if self.role.name == 'Student' and not self.parent_mother and not self.parent_father:
+            raise ValidationError(f'One of the parent fields is required!')
+        elif self.role.name in ['Administrator', 'Parent', 'Professor']:
             if not self.admin_password and not self.password and not self.email and not self.phone and not self.salt:
                 raise ValidationError(f'Fields admin_password, password, email, phone and salt are required!')
             if not self.id:
-                if not self.is_active:
-                    self.activation_code = self.create_activation_code(10)
-                    self.expired_activation_code = django.utils.timezone.now() + timedelta(hours=2)
                 if self.check_user_unique_email(email=self.email):
                     raise ValidationError(f'User with {self.email} already exists!')
-                if not self.password_strength():
-                    raise ValueError(f'Password is not valid!')
-                self.password = new_psw(self.salt, self.admin_password)
             else:
                 existing_id = True
                 edit_user = User.objects.filter(id=self.id).first()
-                if edit_user.email != self.email:
-                    if self.check_user_unique_email(email=self.email):
-                        raise ValidationError(f'User with {self.email} already exists!')
-                if self.admin_password and edit_user.password != new_psw(self.salt, self.admin_password):
+                if edit_user.email != self.email and self.check_user_unique_email(email=self.email):
+                    raise ValidationError(f'User with {self.email} already exists!')
+                if edit_user.password != self.password:
                     changing_password = True
-                    if not self.password_strength():
-                        raise ValueError(f'Password is not valid!')
-                    self.password = new_psw(self.salt, self.admin_password)
-                    self.admin_password = ''
-                    self.is_active = False
-                    self.activation_code = self.create_activation_code(10)
-                    self.expired_activation_code = django.utils.timezone.now() + timedelta(hours=2)
-            self.parent_mother = None
-            self.parent_father = None
-            self.admin_password = None
-        else:
-            return f"Error! This role doesn't exist inside roles constant!"
-        super().save(*args, **kwargs)
-        if not existing_id or (existing_id and changing_password):
+        super(User, self).save(*args, **kwargs)
+        if not existing_id or (existing_id and changing_password) and not self.role.name == 'Student':
             if self.send_activation_code_on_email():
                 return ok_response(message=f'Mail sent successfully!')
             else:
@@ -297,8 +277,7 @@ class User(models.Model):
     @staticmethod
     def check_user_unique_email(email):
         if User.objects.filter(
-                email=email,
-                is_delete=False
+                email=email
         ):
             return True
         return False
@@ -306,30 +285,46 @@ class User(models.Model):
     def change_password(self, password):
         try:
             self.admin_password = password
+            if not self.password_strength():
+                raise ValueError(f'Password is not valid!')
+            self.password = new_psw(self.salt, self.admin_password)
+            self.admin_password = ''
+            self.is_active = False
+            self.activation_code = self.create_activation_code(10)
+            self.expired_activation_code = django.utils.timezone.now() + timedelta(hours=2)
             self.save()
             return True
         except Exception as ex:
             print(ex)
             return False
 
-    @classmethod
-    def add_new_user(cls, data):
+    @staticmethod
+    def add_new_user(data):
+        role = Role.get_role_by_id(role_id=data['role_id'])
         try:
             user = User()
+            user.email = data['email'] if role.name != 'Student' else None
+            user.phone = data['phone'] if role.name != 'Student' else None
+            user.salt = user.salt if role.name != 'Student' else None
+            user.admin_password = data['password'] if role.name != 'Student' else None
+            user.parent_mother_id = data['parent_mother'] if role.name == 'Student' else None
+            user.parent_father_id = data['parent_father'] if role.name == 'Student' else None
+            user.activation_code = User.create_activation_code(10) if role.name != 'Student' and not data['is_active'] else None
+            user.expired_activation_code = django.utils.timezone.now() + timedelta(hours=2) if role.name != 'Student' and not data['is_active'] else None
             user.first_name = data['first_name']
             user.last_name = data['last_name']
-            user.email = data['email']
             user.address = data['address']
             user.city = data['city']
-            user.phone = data['phone']
             user.is_active = data['is_active']
             user.birth_date = data['birth_date']
             user.gender_id = data['gender_id']
             user.role_id = data['role_id']
-            user.parent_mother_id = data['parent_mother']
-            user.parent_father_id = data['parent_father']
-            user.admin_password = data['password']
             user.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+            if user.admin_password:
+                if not user.password_strength():
+                    raise ValueError(f'Password is not valid!')
+                user.password = new_psw(user.salt, user.admin_password)
+                user.admin_password = None
             user.save()
             return True
         except Exception as ex:
@@ -337,28 +332,31 @@ class User(models.Model):
             return False
 
     def edit_user(self, data):
+        role = Role.get_role_by_id(role_id=data['role_id'])
         try:
+            self.email = data['email'] if role.name != 'Student' else None
+            self.phone = data['phone'] if role.name != 'Student' else None
+            self.admin_password = None
+            self.salt = self.salt if role.name != 'Student' else None
+            self.password = self.password if role.name != 'Student' else None
+            self.parent_mother_id = data['parent_mother'] if role.name == 'Student' else None
+            self.parent_father_id = data['parent_father'] if role.name == 'Student' else None
             self.first_name = data['first_name']
             self.last_name = data['last_name']
-            self.email = data['email']
             self.address = data['address']
             self.city = data['city']
-            self.phone = data['phone']
             self.is_active = data['is_active']
-            self.is_delete = data['is_deleted']
             self.birth_date = data['birth_date']
             self.gender_id = data['gender_id']
             self.role_id = data['role_id']
-            self.parent_mother_id = data['parent_mother']
-            self.parent_father_id = data['parent_father']
             self.save()
             return True
         except Exception as ex:
             print(ex)
             return False
 
-    @classmethod
-    def get_user_by_id(cls, user_id, requester, parent_id=None):
+    @staticmethod
+    def get_user_by_id(user_id, requester, parent_id=None):
         user = User.objects.filter(id=user_id)
         if requester not in ['Administrator', 'Professor', 'Parent']:
             return None
@@ -368,8 +366,8 @@ class User(models.Model):
             user = user.filter(Q(parent_mother=parent_id) | Q(parent_father=parent_id))
         return user.first()
 
-    @classmethod
-    def get_all_users(cls, data, requester):
+    @staticmethod
+    def get_all_users(data, requester):
         """
         This method will get all users depends on filters, is user is deleted, deactivated etc.
         :return: user_list
@@ -381,13 +379,6 @@ class User(models.Model):
             for k, v in data.items():
                 filters.append(k)
         users = User.objects.filter()
-        if 'is_deleted' in filters:
-            try:
-                int(data['is_deleted'])
-                if int(data['is_deleted']) in [0, 1]:
-                    users = users.filter(is_delete=data['is_deleted'])
-            except ValueError as ex:
-                print(ex)
         if 'is_active' in filters:
             try:
                 int(data['is_active'])
@@ -447,21 +438,14 @@ class User(models.Model):
             users = users[:offset+limit]
         return users.all()
 
-    @classmethod
-    def count_all_users(cls, data, requester):
+    @staticmethod
+    def count_all_users(data, requester):
         filters = []
         search = ''
         if data:
             for k, v in data.items():
                 filters.append(k)
         users = User.objects.filter()
-        if 'is_deleted' in filters:
-            try:
-                int(data['is_deleted'])
-                if int(data['is_deleted']) in [0, 1]:
-                    users = users.filter(is_delete=data['is_deleted'])
-            except ValueError as ex:
-                print(ex)
         if 'is_active' in filters:
             try:
                 int(data['is_active'])
@@ -504,17 +488,6 @@ class User(models.Model):
             )
         return users.count()
 
-    def delete(self, using=None, keep_parents=False):
-        """
-        Overrated original delete method, this method will set is_delete method to True, and user will never be deleted
-        from database
-        :param using:
-        :param keep_parents:
-        :return:
-        """
-        self.is_delete = True
-        self.save()
-
     def activate_user(self):
         """
         This method will activate user
@@ -548,8 +521,8 @@ class User(models.Model):
             print(ex)
             return False
 
-    @classmethod
-    def get_user_by_email(cls, email):
+    @staticmethod
+    def get_user_by_email(email):
         user = User.objects.filter(email=email).first()
         return user
 
@@ -561,8 +534,8 @@ class User(models.Model):
              }, secret_key_word, algorithm='HS256')
         return signed
 
-    @classmethod
-    def check_security_token(cls, security_token):
+    @staticmethod
+    def check_security_token(security_token):
         try:
             decode = jwt.decode(security_token, secret_key_word, algorithms='HS256')
         except Exception as ex:
@@ -572,9 +545,9 @@ class User(models.Model):
             return False
         return decode
 
-    @classmethod
-    def check_user_login_password(cls, user, password):
-        if user.password != cls.set_password(salt=user.salt, password=password):
+    @staticmethod
+    def check_user_login_password(user, password):
+        if user.password != User.set_password(salt=user.salt, password=password):
             return False
         return True
 
@@ -631,8 +604,8 @@ class SchoolClass(models.Model):
     def __str__(self):
         return f'{self.name} {self.school_year}'
 
-    @classmethod
-    def get_all_school_classes(cls, limit, offset):
+    @staticmethod
+    def get_all_school_classes(limit, offset):
         school_classes = SchoolClass.objects.filter().order_by('-id').all()
         if limit not in LIMIT_CHOICES:
             limit = 0
@@ -642,31 +615,22 @@ class SchoolClass(models.Model):
             school_classes = school_classes[:offset + limit]
         return school_classes
 
-    @classmethod
-    def count_school_classes(cls):
+    @staticmethod
+    def count_school_classes():
         return SchoolClass.objects.filter().count()
 
-    @classmethod
-    def get_members_by_school_class_id(cls, school_class_id, limit, offset):
+    @staticmethod
+    def get_members_by_school_class_id(school_class_id, limit, offset):
         professors = SchoolClassProfessor.objects.prefetch_related('professor').filter(
             school_class_id=school_class_id
         ).all()
         students = SchoolClassStudent.objects.prefetch_related('student').filter(
             school_class_id=school_class_id
         ).all()
-        # professors = [m.professor for m in professors]
-        # students = [m.student for m in students]
-        # members = professors + students
-        # if limit not in LIMIT_CHOICES:
-        #     limit = 0
-        # if offset and limit and limit > offset:
-        #     members = members[offset*limit:(offset*limit)+limit]
-        # elif not offset and limit and limit > offset:
-        #     members = members[:offset+limit]
         return professors, students
 
-    @classmethod
-    def count_members_by_school_class_id(cls, school_class_id):
+    @staticmethod
+    def count_members_by_school_class_id(school_class_id):
         professors_number = SchoolClassProfessor.objects.filter(school_class_id=school_class_id).count()
         students_number = SchoolClassStudent.objects.filter(school_class_id=school_class_id).count()
         return professors_number + students_number
@@ -682,15 +646,12 @@ class SchoolClassProfessor(models.Model):
     # Relationships
     professor = models.ForeignKey(
         User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
     school_class = models.ForeignKey(
         SchoolClass,
         on_delete=models.CASCADE,
-        null=False,
         help_text=f'This field is required!'
     )
 
@@ -719,13 +680,11 @@ class SchoolClassStudent(models.Model):
     student = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        null=False,
         help_text=f'This field is required!'
     )
     school_class = models.ForeignKey(
         SchoolClass,
         on_delete=models.CASCADE,
-        null=False,
         help_text=f'This field is required!'
     )
 
@@ -758,8 +717,8 @@ class SchoolSubject(models.Model):
     def __str__(self):
         return f"{self.name} {'(Activated)' if self.is_active else '(Deactivated)'}"
 
-    @classmethod
-    def get_all_school_subjects(cls, limit, offset):
+    @staticmethod
+    def get_all_school_subjects(limit, offset):
         school_subjects = SchoolSubject.objects.filter().order_by('id').all()
         if limit not in LIMIT_CHOICES:
             limit = 0
@@ -769,12 +728,12 @@ class SchoolSubject(models.Model):
             school_subjects = school_subjects[:offset+limit]
         return school_subjects
 
-    @classmethod
-    def count_school_subject(cls):
+    @staticmethod
+    def count_school_subject():
         return SchoolSubject.objects.filter().count()
 
-    @classmethod
-    def add_new_school_subject(cls, data):
+    @staticmethod
+    def add_new_school_subject(data):
         try:
             school_subject = SchoolSubject()
             school_subject.name = data['name']
@@ -789,8 +748,8 @@ class SchoolSubject(models.Model):
     def delete_school_subject(self):
         self.delete()
 
-    @classmethod
-    def get_school_subject_by_id(cls, school_subject_id):
+    @staticmethod
+    def get_school_subject_by_id(school_subject_id):
         return SchoolSubject.objects.filter(id=school_subject_id).first()
 
     def edit_school_subject(self, data):
@@ -814,22 +773,19 @@ class ClassRoomSchoolSubject(models.Model):
     # Relationships
     professor = models.ForeignKey(
         User,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
     school_subject = models.ForeignKey(
         SchoolSubject,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
     school_class = models.ForeignKey(
         SchoolClass,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
@@ -875,30 +831,26 @@ class Grade(models.Model):
     professor = models.ForeignKey(
         User,
         related_name='User.professor+',
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
     student = models.ForeignKey(
         User,
         related_name='User.student+',
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
     school_subject = models.ForeignKey(
         SchoolSubject,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
     school_class = models.ForeignKey(
         SchoolClass,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
@@ -927,8 +879,8 @@ class Grade(models.Model):
             raise ValueError(f'The school class is deactivated!')
         super().save(*args, **kwargs)
 
-    @classmethod
-    def get_all_grades_by_student_id_or_school_subject_id(cls, student_id, school_subject_id):
+    @staticmethod
+    def get_all_grades_by_student_id_or_school_subject_id(student_id, school_subject_id):
         grades = Grade.objects.filter(student_id=student_id)
         if school_subject_id > 0:
             grades = grades.filter(school_subject_id=school_subject_id)
@@ -961,22 +913,19 @@ class Event(models.Model):
     # Relationships
     professor = models.ForeignKey(
         User,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
     school_class = models.ForeignKey(
         SchoolClass,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
     school_subject = models.ForeignKey(
         SchoolSubject,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is optional! This field will help parents to know if event is exam and'
         f'which school subject is about.'
     )
@@ -995,8 +944,8 @@ class Event(models.Model):
             raise ValueError(f'The school class is deactivated!')
         super().save(*args, **kwargs)
 
-    @classmethod
-    def get_all_events_by_parent_id(cls, parent_id):
+    @staticmethod
+    def get_all_events_by_parent_id(parent_id):
         children = User.objects.filter(Q(parent_father=parent_id) | Q(parent_mother=parent_id)).all()
         if not children:
             return []
@@ -1033,30 +982,26 @@ class Absence(models.Model):
     professor = models.ForeignKey(
         User,
         related_name='User.professor+',
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
     student = models.ForeignKey(
         User,
         related_name='User.student+',
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
     school_subject = models.ForeignKey(
         SchoolSubject,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
     school_class = models.ForeignKey(
         SchoolClass,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=f'This field is required!'
     )
 
@@ -1081,8 +1026,8 @@ class Absence(models.Model):
             raise ValueError(f'The school class is deactivated!')
         super().save(*args, **kwargs)
 
-    @classmethod
-    def get_all_absences(cls, student_id, school_subject_id, is_justified):
+    @staticmethod
+    def get_all_absences(student_id, school_subject_id, is_justified):
         absences = Absence.objects.filter(
             student_id=student_id,
             student__is_active=True
@@ -1098,8 +1043,8 @@ class Absence(models.Model):
             absences = absences.filter(is_justified=False)
         return absences.all()
 
-    @classmethod
-    def count_all_absences_by_justified(cls, student_id, school_subject_id):
+    @staticmethod
+    def count_all_absences_by_justified(student_id, school_subject_id):
         justified_absences = Absence.objects.filter(
             student_id=student_id,
             student__is_active=True,
