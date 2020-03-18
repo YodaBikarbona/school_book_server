@@ -31,7 +31,6 @@ class Validation:
             data['city']
             data['phone']
             data['is_active']
-            data['is_deleted']
             data['birth_date']
             data['gender_id']
             data['role_id']
@@ -75,6 +74,49 @@ class Validation:
         try:
             data['name']
             data['is_active']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def add_school_class_validation(cls, data):
+        try:
+            data['name']
+            data['school_year']
+            data['is_active']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def edit_school_class_validation(cls, data):
+        try:
+            data['name']
+            data['is_active']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def add_member_to_school_class_validation(cls, data):
+        try:
+            data['is_active']
+            data['role_name']
+            data['school_class_id']
+            data['user_id']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def activate_or_deactivate_member_to_school_class_validation(cls, data):
+        try:
+            data['is_active']
+            data['role_name']
             return True
         except Exception as ex:
             print(ex)

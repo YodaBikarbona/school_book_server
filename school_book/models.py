@@ -17,9 +17,6 @@ from .helper import (
     error_handler
 )
 from .constants import (
-    OFFSET,
-    LIMIT,
-    LIMIT_CHOICES,
     secret_key_word,
     roles
 )
@@ -39,8 +36,6 @@ class Role(models.Model):
     @staticmethod
     def get_all_roles(limit, offset):
         roles = Role.objects.filter().order_by('id').all()
-        if limit not in LIMIT_CHOICES:
-            limit = 0
         if offset and limit and limit > offset:
             roles = roles[offset*limit:(offset*limit)+limit]
         elif not offset and limit and limit > offset:
@@ -266,6 +261,8 @@ class User(models.Model):
                 if edit_user.email != self.email and self.check_user_unique_email(email=self.email):
                     raise ValidationError(f'User with {self.email} already exists!')
                 if edit_user.password != self.password:
+                    self.password = new_psw(self.salt, self.admin_password) if self.admin_password else self.password
+                    self.admin_password = None
                     changing_password = True
         super(User, self).save(*args, **kwargs)
         if not existing_id or (existing_id and changing_password) and not self.role.name == 'Student':
@@ -372,9 +369,9 @@ class User(models.Model):
         This method will get all users depends on filters, is user is deleted, deactivated etc.
         :return: user_list
         """
+        limit = 0
+        offset = 0
         filters = []
-        offset = OFFSET
-        limit = LIMIT
         if data:
             for k, v in data.items():
                 filters.append(k)
@@ -418,8 +415,6 @@ class User(models.Model):
         if 'limit' in filters:
             try:
                 limit = int(data['limit'])
-                if limit not in LIMIT_CHOICES:
-                    limit = 0
             except ValueError as ex:
                 print(ex)
         if 'search' in filters:
@@ -432,7 +427,7 @@ class User(models.Model):
                 Q(email__icontains=search)
             )
         users = users.order_by('id')
-        if offset and limit and limit > offset:
+        if offset and limit:
             users = users[offset*limit:(offset*limit)+limit]
         elif not offset and limit and limit > offset:
             users = users[:offset+limit]
@@ -588,12 +583,10 @@ class SchoolClass(models.Model):
     created = models.DateTimeField(default=django.utils.timezone.now)
     school_year = models.CharField(
         max_length=9,
-        null=False,
         help_text=f'This field is required!'
     )
     name = models.CharField(
         max_length=50,
-        unique=True,
         help_text=f'This field is required!'
     )
     is_active = models.BooleanField(
@@ -601,14 +594,15 @@ class SchoolClass(models.Model):
         help_text=f'If class room is deactivated, professors can only read class room and all related with class room!'
     )
 
+    class Meta:
+        unique_together = ('name', 'school_year')
+
     def __str__(self):
         return f'{self.name} {self.school_year}'
 
     @staticmethod
     def get_all_school_classes(limit, offset):
         school_classes = SchoolClass.objects.filter().order_by('-id').all()
-        if limit not in LIMIT_CHOICES:
-            limit = 0
         if offset and limit and limit > offset:
             school_classes = school_classes[offset * limit:(offset * limit) + limit]
         elif not offset and limit and limit > offset:
@@ -634,6 +628,39 @@ class SchoolClass(models.Model):
         professors_number = SchoolClassProfessor.objects.filter(school_class_id=school_class_id).count()
         students_number = SchoolClassStudent.objects.filter(school_class_id=school_class_id).count()
         return professors_number + students_number
+
+    def delete_school_class(self):
+        self.delete()
+
+    @staticmethod
+    def get_school_class_by_id(school_class_id):
+        return SchoolClass.objects.filter(id=school_class_id).first()
+
+    @staticmethod
+    def add_new_school_class(data):
+        try:
+            school_class = SchoolClass()
+            school_class.name = data['name']
+            school_class.school_year = data['school_year']
+            school_class.is_active = data['is_active']
+            school_class.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+            school_class.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @staticmethod
+    def edit_new_school_class(data, school_class_id):
+        school_class = SchoolClass.get_school_class_by_id(school_class_id=school_class_id)
+        try:
+            school_class.name = data['name']
+            school_class.is_active = data['is_active']
+            school_class.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
 
 
 class SchoolClassProfessor(models.Model):
@@ -668,6 +695,29 @@ class SchoolClassProfessor(models.Model):
             raise ValueError(f"Professor hasn't Professor role, role is {self.professor.role.name}!")
         super().save(*args, **kwargs)
 
+    @staticmethod
+    def find_member_by_member_id(member_id):
+        return SchoolClassProfessor.objects.filter(id=member_id).first()
+
+    def activate_or_deactivate_member(self, is_active):
+        self.is_active = is_active
+        self.save()
+        return True
+
+    @staticmethod
+    def add_new_member(data):
+        try:
+            school_class_professor = SchoolClassProfessor()
+            school_class_professor.is_active = data['is_active']
+            school_class_professor.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+            school_class_professor.professor_id = data['user_id']
+            school_class_professor.school_class_id = data['school_class_id']
+            school_class_professor.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
 
 class SchoolClassStudent(models.Model):
     created = models.DateTimeField(default=django.utils.timezone.now)
@@ -701,6 +751,29 @@ class SchoolClassStudent(models.Model):
             raise ValueError(f"Student hasn't Student role, role is {self.student.role.name}!")
         super().save(*args, **kwargs)
 
+    @staticmethod
+    def find_member_by_member_id(member_id):
+        return SchoolClassProfessor.objects.filter(id=member_id).first()
+
+    def activate_or_deactivate_member(self, is_active):
+        self.is_active = is_active
+        self.save()
+        return True
+
+    @staticmethod
+    def add_new_member(data):
+        try:
+            school_class_student = SchoolClassStudent()
+            school_class_student.is_active = data['is_active']
+            school_class_student.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+            school_class_student.student_id = data['user_id']
+            school_class_student.school_class_id = data['school_class_id']
+            school_class_student.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
 
 class SchoolSubject(models.Model):
     created = models.DateTimeField(default=django.utils.timezone.now)
@@ -720,8 +793,6 @@ class SchoolSubject(models.Model):
     @staticmethod
     def get_all_school_subjects(limit, offset):
         school_subjects = SchoolSubject.objects.filter().order_by('id').all()
-        if limit not in LIMIT_CHOICES:
-            limit = 0
         if offset and limit and limit > offset:
             school_subjects = school_subjects[offset*limit:(offset*limit)+limit]
         elif not offset and limit and limit > offset:

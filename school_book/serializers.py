@@ -64,7 +64,6 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
             'city',
             'phone',
             'is_active',
-            'is_delete',
             'birth_date',
             'gender',
             'role',

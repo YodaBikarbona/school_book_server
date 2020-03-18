@@ -44,11 +44,19 @@ urlpatterns = [
     path('school_book/admin/users/user/<int:user_id>/change_password', school_book_views.change_user_password),
     path('school_book/admin/roles/role/<int:role_id>/edit', school_book_views.edit_role),
     path('school_book/admin/school_subjects/add', school_book_views.add_school_subject),
-    # path('school_book/admin/school_subjects/school_subject/<int:school_subject_id>/delete',
-    #      school_book_views.delete_school_subject),
+    path('school_book/admin/school_subjects/school_subject/<int:school_subject_id>/delete',
+         school_book_views.delete_school_subject),
     path('school_book/admin/school_subjects/school_subject/<int:school_subject_id>/edit',
          school_book_views.edit_school_subject),
     path('school_book/school_classes', school_book_views.get_all_school_classes),
     path('school_book/school_classes/school_class/<int:school_class_id>/members',
-         school_book_views.get_school_class_members)
+         school_book_views.get_school_class_members),
+    path('school_book/admin/school_classes/school_class/<int:school_class_id>/delete',
+         school_book_views.delete_school_class),
+    path('school_book/admin/school_classes/add', school_book_views.add_school_class),
+    path('school_book/admin/school_classes/school_class/<int:school_class_id>/edit',
+         school_book_views.edit_school_class),
+    path('school_book/admin/school_classes/school_class/members/add', school_book_views.add_school_class_member),
+    path('school_book/admin/school_classes/school_class/members/member/<int:member_id>/activate_or_deactivate',
+         school_book_views.activate_or_deactivate_school_class_member)
 ]

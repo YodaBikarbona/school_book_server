@@ -8,7 +8,6 @@ from hashlib import sha512
 import django
 from django.utils import timezone
 from django.http import HttpResponse
-from .constants import LIMIT_CHOICES
 
 
 def now():
@@ -77,23 +76,19 @@ def activation_code(size):
 
 
 def check_valid_limit_and_offset(limit, offset):
-    LIMIT = 0
-    OFFSET = 0
     if not limit and offset:
-        return LIMIT, OFFSET
+        return 0, 0
     if limit:
         try:
-            LIMIT = int(limit)
-            if LIMIT not in LIMIT_CHOICES:
-                LIMIT = 0
+            int(limit)
         except ValueError as ex:
             print(ex)
     if offset:
         try:
-            OFFSET = int(offset)
+            int(offset)
         except ValueError as ex:
             print(ex)
-    return LIMIT, OFFSET
+    return int(limit), int(offset)
 
 
 def authorization(func):

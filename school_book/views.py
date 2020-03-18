@@ -1,5 +1,7 @@
+import json
 import django
 from rest_framework.decorators import api_view
+from django.http import HttpResponse
 from .models import (
     User,
     SchoolSubject,
@@ -8,7 +10,9 @@ from .models import (
     Absence,
     Role,
     Gender,
-    SchoolClass
+    SchoolClass,
+    SchoolClassProfessor,
+    SchoolClassStudent
 )
 from .helper import (
     ok_response,
@@ -66,7 +70,19 @@ def get_user_by_id(request, user_id):
     user['gender'] = dict(user['gender'])
     user['parent_mother'] = dict(user['parent_mother']) if dict(user['parent_mother']) else {}
     user['parent_father'] = dict(user['parent_father']) if dict(user['parent_father']) else {}
-    return ok_response('User', additional_data=user)
+    return HttpResponse(
+                json.dumps(
+                    {
+                        'status': f'OK',
+                        'code': 200,
+                        'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                        'message': f'User',
+                        'result': user
+                    }
+                ),
+                content_type='application/json',
+                status=200
+            )
 
 
 @api_view(['GET'])
@@ -104,14 +120,26 @@ def get_users(request):
         u['parent_mother'] = dict(u['parent_mother']) if u['parent_mother'] else {}
         u['parent_father'] = dict(u['parent_father']) if u['parent_father'] else {}
         users_json.append(u)
-    return ok_response('Users', additional_data=users_json)
+    return HttpResponse(
+                json.dumps(
+                    {
+                        'status': f'OK',
+                        'code': 200,
+                        'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                        'message': f'Users',
+                        'results': users_json
+                    }
+                ),
+                content_type='application/json',
+                status=200
+            )
 
 
 @api_view(['DELETE'])
 @authorization
 def delete_user(request, user_id):
     """
-    This method will set is_delete flag to True. This method will never delete the user from database
+    This method will delete the user by user_id
     :param request:
     :param user_id:
     :return: message
@@ -130,7 +158,18 @@ def delete_user(request, user_id):
         if user.security_token() != security_token:
             return error_handler(error_status=403, message='Forbidden permission!')
     user.delete()
-    return ok_response('User is successfully deleted!')
+    return HttpResponse(
+                json.dumps(
+                    {
+                        'status': f'OK',
+                        'code': 200,
+                        'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                        'message': f'User is successfully deleted!',
+                    }
+                ),
+                content_type='application/json',
+                status=200
+            )
 
 
 @api_view(['PATCH'])
@@ -165,12 +204,34 @@ def activate_or_deactivate_user(request, user_id):
             return error_handler(error_status=403, message='Forbidden permission!')
     if body['is_active']:
         if user.activate_user():
-            return ok_response('User is successfully activated!')
+            return HttpResponse(
+                json.dumps(
+                    {
+                        'status': f'OK',
+                        'code': 200,
+                        'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                        'message': f'User is successfully activated!',
+                    }
+                ),
+                content_type='application/json',
+                status=200
+            )
         else:
             return error_handler(error_status=400, message='Something is wrong! User is not activated!')
     else:
         if user.deactivate_user():
-            return ok_response('User is successfully deactivated!')
+            return HttpResponse(
+                json.dumps(
+                    {
+                        'status': f'OK',
+                        'code': 200,
+                        'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                        'message': f'User is successfully deactivated!',
+                    }
+                ),
+                content_type='application/json',
+                status=200
+            )
         else:
             return error_handler(error_status=400, message='Something is wrong! User is not deactivated!')
 
@@ -194,7 +255,18 @@ def activate_user(request):
     if django.utils.timezone.now() >= user.expired_activation_code:
         return error_handler(error_status=403, message='An activation code expired!')
     if user.activate_user():
-        return ok_response('User is successfully activated!')
+        return HttpResponse(
+            json.dumps(
+                {
+                    'status': f'OK',
+                    'code': 200,
+                    'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                    'message': f'User is successfully activated!',
+                }
+            ),
+            content_type='application/json',
+            status=200
+        )
     else:
         return error_handler(error_status=400, message='Something is wrong! User is not activated!')
 
@@ -227,7 +299,19 @@ def login_user(request):
     user['role'] = dict(user['role'])
     user['gender'] = dict(user['gender'])
     user['token'] = security_token
-    return ok_response(message='User is successfully logged!', additional_data=user)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'User is successfully logged!',
+                'result': user
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['GET'])
@@ -254,7 +338,19 @@ def get_children_by_parent_id(request):
         child = dict(child)
         child['role'] = dict(child['role'])
         child['gender'] = dict(child['gender'])
-    return ok_response(message='Children', additional_data=children)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Children',
+                'results': children
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['GET'])
@@ -285,14 +381,26 @@ def get_all_school_subjects(request):
     for school_subject in school_subjects:
         school_subject['school_subjects_number'] = school_subjects_number
         school_subject = dict(school_subject)
-    return ok_response(message='School subjects', additional_data=school_subjects)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School subjects',
+                'results': school_subjects
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['POST'])
 @authorization
 def add_school_subject(request):
     """
-    This method will add a new subject
+    This method will add a new school subject
     :param request:
     :param_body: name, is_active
     :return: message
@@ -309,14 +417,25 @@ def add_school_subject(request):
         return error_handler(error_status=404, message=f'Not found!')
     if not SchoolSubject.add_new_school_subject(data=body):
         return error_handler(error_status=403, message='School subject is not added!')
-    return ok_response(message='School subject is successfully added!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 201,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School subject is successfully added!',
+            }
+        ),
+        content_type='application/json',
+        status=201
+    )
 
 
 @api_view(['PUT'])
 @authorization
 def edit_school_subject(request, school_subject_id):
     """
-    This method will edit an old subject
+    This method will edit an old school subject
     :param request:
     :param school_subject_id:
     :param_body: name, is_active
@@ -337,7 +456,18 @@ def edit_school_subject(request, school_subject_id):
         return error_handler(error_status=404, message=f'Not found!')
     if not school_subject.edit_school_subject(data=body):
         return error_handler(error_status=403, message='School subject is not edited!')
-    return ok_response(message='School subject is successfully edited!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School subject is successfully edited!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['DELETE'])
@@ -360,7 +490,18 @@ def delete_school_subject(request, school_subject_id):
     if not school_subject:
         return error_handler(error_status=404, message=f"School subject doesn't exist!")
     school_subject.delete_school_subject()
-    return ok_response(message='School subject is successfully deleted!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School subject is successfully deleted!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['GET'])
@@ -391,7 +532,19 @@ def get_all_school_classes(request):
     for school_class in school_classes:
         school_class['school_classes_number'] = school_classes_number
         school_class = dict(school_class)
-    return ok_response(message='School classes', additional_data=school_classes)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School classes',
+                'results': school_classes,
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['GET'])
@@ -426,7 +579,19 @@ def get_all_student_grades(request, user_id, school_subject_id):
         grade['student']['gender'] = dict(grade['student']['gender'])
         grade['school_subject'] = dict(grade['school_subject'])
         grade['school_class'] = dict(grade['school_class'])
-    return ok_response(message='Grades', additional_data=grades)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Grades',
+                'results': grades,
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['GET'])
@@ -456,7 +621,19 @@ def get_all_events_by_parent_id(request):
         event['professor']['gender'] = dict(event['professor']['gender'])
         event['school_subject'] = dict(event['school_subject'])
         event['school_class'] = dict(event['school_class'])
-    return ok_response(message='Grades', additional_data=events)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Events',
+                'results': events,
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['GET'])
@@ -502,7 +679,19 @@ def get_all_student_absences(request, user_id, school_subject_id, is_justified):
         absence['student']['gender'] = dict(absence['student']['gender'])
         absence['school_subject'] = dict(absence['school_subject'])
         absence['school_class'] = dict(absence['school_class'])
-    return ok_response(message='Absences', additional_data=absences)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Absences',
+                'results': absences,
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['GET'])
@@ -532,7 +721,20 @@ def get_all_student_absences_number(request, user_id, school_subject_id):
     absences = {}
     absences['justified_absences'] = justified_absences
     absences['unjustified_absences'] = unjustified_absences
-    return ok_response(message='Absences', additional_data=absences)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Absences',
+                'justified_absences': justified_absences,
+                'unjustified_absences': unjustified_absences
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['GET'])
@@ -560,7 +762,19 @@ def get_all_roles(request):
     for role in roles:
         role['roles_number'] = roles_number
         role = dict(role)
-    return ok_response(message='Roles', additional_data=roles)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Roles',
+                'results': roles
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['POST'])
@@ -584,7 +798,18 @@ def add_new_role(request):
         return error_handler(error_status=404, message=f'Not found!')
     if not Role.add_new_role(role_name=body['roleName']):
         return error_handler(error_status=403, message=f'Role is not added!')
-    return ok_response(message='Role is successfully added!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 201,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Role is successfully added!',
+            }
+        ),
+        content_type='application/json',
+        status=201
+    )
 
 
 @api_view(['DELETE'])
@@ -608,7 +833,18 @@ def delete_role(request, role_id):
     if not role:
         return error_handler(error_status=404, message=f"Role doesn't exist!")
     role.delete_role()
-    return ok_response(message='Role is successfully deleted!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Role is successfully deleted!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['GET'])
@@ -630,7 +866,19 @@ def get_all_genders(request):
     genders = GenderSerializer(many=True, instance=genders).data
     for gender in genders:
         gender = dict(gender)
-    return ok_response(message='Genders', additional_data=genders)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Genders',
+                'results': genders
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['POST'])
@@ -655,7 +903,18 @@ def add_new_user(request):
         return error_handler(error_status=404, message=f'Not found!')
     if not User.add_new_user(data=body):
         return error_handler(error_status=403, message=f'User is not added!')
-    return ok_response(message='User is successfully added!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 201,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'User is successfully added!',
+            }
+        ),
+        content_type='application/json',
+        status=201
+    )
 
 
 @api_view(['POST'])
@@ -684,7 +943,18 @@ def edit_user(request, user_id):
         return error_handler(error_status=404, message=f'Not found!')
     if not user.edit_user(data=body):
         return error_handler(error_status=403, message=f'User is not edited!')
-    return ok_response(message='User is successfully edited!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'User is successfully edited!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['PATCH'])
@@ -712,7 +982,18 @@ def change_user_password(request, user_id):
         return error_handler(error_status=404, message=f'Not found!')
     if not user.change_password(password=body['password']):
         return error_handler(error_status=403, message=f'Password is not changed!')
-    return ok_response(message='Password is successfully changed!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Password is successfully changed!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['PATCH'])
@@ -740,7 +1021,18 @@ def edit_role(request, role_id):
         return error_handler(error_status=404, message=f'Not found!')
     if not role.edit_role(data=body):
         return error_handler(error_status=403, message=f'Role is not changed!')
-    return ok_response(message='Role is successfully changed!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Role is successfully changed!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
 
 
 @api_view(['GET'])
@@ -794,4 +1086,205 @@ def get_school_class_members(request, school_class_id):
         s['student']['parent_mother'] = dict(s['student']['parent_mother']) if s['student']['parent_mother'] else {}
         s['student']['parent_father'] = dict(s['student']['parent_father']) if s['student']['parent_father'] else {}
         users_json.append(s)
-    return ok_response('Users', additional_data=users_json)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Users',
+                'results': users_json
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['DELETE'])
+@authorization
+def delete_school_class(request, school_class_id):
+    """
+    This method will delete an old school class
+    :param request:
+    :param school_class_id:
+    :return: message
+    """
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    school_class = SchoolClass.get_school_class_by_id(school_class_id=school_class_id)
+    if not school_class:
+        return error_handler(error_status=404, message=f"School class doesn't exist!")
+    school_class.delete_school_class()
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School class is successfully deleted!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['POST'])
+@authorization
+def add_school_class(request):
+    """
+    This method will add a new school class
+    :param request:
+    :param_body: name, school_year, is_active
+    :return: message
+    """
+    body = request.data
+    if not Validation.add_school_class_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not SchoolClass.add_new_school_class(data=body):
+        return error_handler(error_status=403, message='School class is not added!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 201,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School class is successfully added!',
+            }
+        ),
+        content_type='application/json',
+        status=201
+    )
+
+
+@api_view(['PUT'])
+@authorization
+def edit_school_class(request, school_class_id):
+    """
+    This method will edit a school class
+    :param request:
+    :param school_class_id:
+    :param_body: id, name, is_active
+    :return: message
+    """
+    body = request.data
+    if not Validation.edit_school_class_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not SchoolClass.edit_new_school_class(data=body, school_class_id=school_class_id):
+        return error_handler(error_status=403, message='School class is not edited!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School class is successfully edited!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['POST'])
+@authorization
+def add_school_class_member(request):
+    """
+    This method will add a member into school class
+    :param request:
+    :param_body: is_active, role_name, school_class_id, user_id
+    :return: message
+    """
+    body = request.data
+    if not Validation.add_member_to_school_class_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if body['role_name'] not in ['professor', 'student']:
+        return error_handler(error_status=400, message=f'Wrong data!')
+    if body['role_name'] == 'professor':
+        if not SchoolClassProfessor.add_new_member(data=body):
+            return error_handler(error_status=403, message='Member is not added to this school class!')
+    else:
+        if not SchoolClassStudent.add_new_member(data=body):
+            return error_handler(error_status=403, message='Member is not added to this school class!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 201,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Member is successfully added to this school class!',
+            }
+        ),
+        content_type='application/json',
+        status=201
+    )
+
+
+@api_view(['PATCH'])
+@authorization
+def activate_or_deactivate_school_class_member(request, member_id):
+    """
+    This method will activate or deactivate school class member
+    :param request:
+    :param member_id:
+    :param_body: is_active, role_name
+    :return: message
+    """
+    body = request.data
+    if not Validation.activate_or_deactivate_member_to_school_class_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if body['role_name'] not in ['Professor', 'Student']:
+        return error_handler(error_status=400, message=f'Wrong data!')
+    if body['role_name'] == 'Professor':
+        member = SchoolClassProfessor.find_member_by_member_id(member_id=member_id)
+    else:
+        member = SchoolClassStudent.find_member_by_member_id(member_id=member_id)
+    if not member:
+        return error_handler(error_status=404, message=f'Not found!')
+    member.activate_or_deactivate_member(is_active=body['is_active'])
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Member is successfully activated!' if body['is_active'] != False else f'Member is successfully activated!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
