@@ -113,10 +113,31 @@ class Validation:
             return False
 
     @classmethod
-    def activate_or_deactivate_member_to_school_class_validation(cls, data):
+    def activate_or_deactivate_school_class_member_validation(cls, data):
         try:
             data['is_active']
             data['role_name']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def activate_or_deactivate_school_class_subject_validation(cls, data):
+        try:
+            data['is_active']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def add_school_subject_to_school_class_validation(cls, data):
+        try:
+            data['is_active']
+            data['user_id']
+            data['school_subject_id']
+            data['school_class_id']
             return True
         except Exception as ex:
             print(ex)

@@ -9,7 +9,8 @@ from .models import (
     Event,
     Absence,
     SchoolClassStudent,
-    SchoolClassProfessor
+    SchoolClassProfessor,
+    ClassRoomSchoolSubject
 )
 
 
@@ -184,5 +185,22 @@ class SchoolCLassStudentsSerializer(serializers.HyperlinkedModelSerializer):
             'created',
             'is_active',
             'student',
+            'school_class'
+        ]
+
+
+class SchoolClassSubjectsSerializer(serializers.HyperlinkedModelSerializer):
+    professor = UserSerializer(many=False)
+    school_subject = SchoolSubjectSerializer(many=False)
+    school_class = SchoolClassSerializer(many=False)
+
+    class Meta:
+        model = ClassRoomSchoolSubject
+        fields = [
+            'id',
+            'created',
+            'is_active',
+            'professor',
+            'school_subject',
             'school_class'
         ]

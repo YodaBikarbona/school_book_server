@@ -753,7 +753,7 @@ class SchoolClassStudent(models.Model):
 
     @staticmethod
     def find_member_by_member_id(member_id):
-        return SchoolClassProfessor.objects.filter(id=member_id).first()
+        return SchoolClassStudent.objects.filter(id=member_id).first()
 
     def activate_or_deactivate_member(self, is_active):
         self.is_active = is_active
@@ -876,6 +876,43 @@ class ClassRoomSchoolSubject(models.Model):
         if not self.school_class.is_active:
             raise ValueError(f'This school class is deactivated!')
         super().save(*args, **kwargs)
+
+    @staticmethod
+    def get_school_school_subject_by_id(school_subject_id):
+        return ClassRoomSchoolSubject.objects.filter(id=school_subject_id).first()
+
+    @staticmethod
+    def get_all_school_subjects_by_school_class_id(school_class_id, limit, offset):
+        school_classes = ClassRoomSchoolSubject.objects.filter(school_class_id=school_class_id).all()
+        if offset and limit and limit > offset:
+            school_classes = school_classes[offset * limit:(offset * limit) + limit]
+        elif not offset and limit and limit > offset:
+            school_classes = school_classes[:offset + limit]
+        return school_classes
+
+    @staticmethod
+    def count_all_school_subjects_by_school_class_id(school_class_id):
+        return ClassRoomSchoolSubject.objects.filter(school_class_id=school_class_id).count()
+
+    def activate_or_deactivate_school_class_subject(self, is_active):
+        self.is_active = is_active
+        self.save()
+        return True
+
+    @staticmethod
+    def add_new_school_subject(data):
+        try:
+            school_class_subject = ClassRoomSchoolSubject()
+            school_class_subject.is_active = data['is_active']
+            school_class_subject.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+            school_class_subject.professor_id = data['user_id']
+            school_class_subject.school_subject_id = data['school_subject_id']
+            school_class_subject.school_class_id = data['school_class_id']
+            school_class_subject.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
 
 
 class Grade(models.Model):

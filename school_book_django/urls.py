@@ -58,5 +58,15 @@ urlpatterns = [
          school_book_views.edit_school_class),
     path('school_book/admin/school_classes/school_class/members/add', school_book_views.add_school_class_member),
     path('school_book/admin/school_classes/school_class/members/member/<int:member_id>/activate_or_deactivate',
-         school_book_views.activate_or_deactivate_school_class_member)
+         school_book_views.activate_or_deactivate_school_class_member),
+    path('school_book/admin/school_classes/school_class/role_name/<str:role_name>/members/member/<int:member_id>/delete',
+         school_book_views.delete_school_class_member),
+    path('school_book/school_classes/school_class/<int:school_class_id>/school_subjects',
+         school_book_views.get_school_class_subjects),
+    path('school_book/admin/school_class_subjects/school_class_subject/<int:school_class_subject_id>/delete',
+         school_book_views.delete_school_class_subject),
+    path('school_book/admin/school_class_subjects/school_class_subject/<int:school_class_subject_id>/activate_or_deactivate',
+         school_book_views.activate_or_deactivate_school_class_subject),
+    path('school_book/admin/school_class_subjects/school_class_subject/add',
+         school_book_views.add_school_class_subject)
 ]

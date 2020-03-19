@@ -12,7 +12,8 @@ from .models import (
     Gender,
     SchoolClass,
     SchoolClassProfessor,
-    SchoolClassStudent
+    SchoolClassStudent,
+    ClassRoomSchoolSubject
 )
 from .helper import (
     ok_response,
@@ -32,7 +33,8 @@ from .serializers import (
     GenderSerializer,
     SchoolClassSerializer,
     SchoolCLassProfessorsSerializer,
-    SchoolCLassStudentsSerializer
+    SchoolCLassStudentsSerializer,
+    SchoolClassSubjectsSerializer
 )
 
 
@@ -1258,7 +1260,7 @@ def activate_or_deactivate_school_class_member(request, member_id):
     :return: message
     """
     body = request.data
-    if not Validation.activate_or_deactivate_member_to_school_class_validation(data=body):
+    if not Validation.activate_or_deactivate_school_class_member_validation(data=body):
         return error_handler(error_status=400, message=f'Wrong data!')
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
@@ -1282,9 +1284,210 @@ def activate_or_deactivate_school_class_member(request, member_id):
                 'status': f'OK',
                 'code': 200,
                 'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
-                'message': f'Member is successfully activated!' if body['is_active'] != False else f'Member is successfully activated!',
+                'message': f'Member is successfully activated!' if body['is_active'] != False else f'Member is successfully deactivated!',
             }
         ),
         content_type='application/json',
         status=200
+    )
+
+
+@api_view(['DELETE'])
+@authorization
+def delete_school_class_member(request, role_name, member_id):
+    """
+    This method will delete an old school class member
+    :param request:
+    :param role_name:
+    :param member_id:
+    :return: message
+    """
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if role_name not in ['Professor', 'Student']:
+        return error_handler(error_status=400, message=f'Wrong data!')
+    if role_name == 'Professor':
+        member = SchoolClassProfessor.find_member_by_member_id(member_id=member_id)
+    else:
+        member = SchoolClassStudent.find_member_by_member_id(member_id=member_id)
+    if not member:
+        return error_handler(error_status=404, message=f'Not found!')
+    member.delete()
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School class member is successfully deleted!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['GET'])
+@authorization
+def get_school_class_subjects(request, school_class_id):
+    """
+    This method will get all school class subjects
+    :param request:
+    :param school_class_id:
+    :return: list of school class subjects
+    """
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    user = User.objects.filter(id=requester_user.id).first()
+    if not user:
+        return error_handler(error_status=404, message=f'Not found!')
+    query_string = request.GET
+    limit = query_string['limit'] if 'limit' in query_string else None
+    offset = query_string['offset'] if 'offset' in query_string else None
+    limit, offset = check_valid_limit_and_offset(limit=limit, offset=offset)
+    school_class_subjects = ClassRoomSchoolSubject.get_all_school_subjects_by_school_class_id(
+        school_class_id=school_class_id,
+        limit=limit,
+        offset=offset
+    )
+    school_class_subjects_number = ClassRoomSchoolSubject.count_all_school_subjects_by_school_class_id(
+        school_class_id=school_class_id
+    )
+    school_class_subjects = SchoolClassSubjectsSerializer(many=True, instance=school_class_subjects).data
+    for school_class_subject in school_class_subjects:
+        school_class_subject['school_class_subjects_number'] = school_class_subjects_number
+        school_class_subject = dict(school_class_subject)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School classe subjects',
+                'results': school_class_subjects,
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['DELETE'])
+@authorization
+def delete_school_class_subject(request, school_class_subject_id):
+    """
+    This method will delete an old school class subject
+    :param request:
+    :param school_class_subject_id:
+    :return: message
+    """
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    school_class_subject = ClassRoomSchoolSubject.get_school_school_subject_by_id(
+        school_subject_id=school_class_subject_id
+    )
+    if not school_class_subject:
+        return error_handler(error_status=404, message=f'Not found!')
+    school_class_subject.delete()
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School class subject is successfully deleted!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['PATCH'])
+@authorization
+def activate_or_deactivate_school_class_subject(request, school_class_subject_id):
+    """
+    This method will activate or deactivate school class subject
+    :param request:
+    :param school_class_subject_id:
+    :param_body: is_active,
+    :return: message
+    """
+    body = request.data
+    if not Validation.activate_or_deactivate_school_class_subject_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    school_class_subject = ClassRoomSchoolSubject.get_school_school_subject_by_id(
+        school_subject_id=school_class_subject_id
+    )
+    if not school_class_subject:
+        return error_handler(error_status=404, message=f'Not found!')
+    school_class_subject.activate_or_deactivate_school_class_subject(body['is_active'])
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School class subject is successfully activated!' if body['is_active'] != False else f'School class subject is successfully deactivated!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['POST'])
+@authorization
+def add_school_class_subject(request):
+    """
+    This method will add a school subject into school class
+    :param request:
+    :param_body: is_active, user_id, school_subject_id, school_class_id
+    :return: message
+    """
+    body = request.data
+    if not Validation.add_school_subject_to_school_class_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Administrator':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not ClassRoomSchoolSubject.add_new_school_subject(data=body):
+        return error_handler(error_status=403, message='Member is not added to this school class!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 201,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School subject is successfully added to this school class!',
+            }
+        ),
+        content_type='application/json',
+        status=201
     )
