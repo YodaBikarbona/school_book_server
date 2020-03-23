@@ -517,7 +517,7 @@ def get_all_school_classes(request):
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
-    if decoded_security_token['role'] != 'Administrator':
+    if decoded_security_token['role'] not in 'Administrator':
         return error_handler(error_status=403, message='Forbidden permission!')
     if not requester_user:
         return error_handler(error_status=404, message=f'Not found!')
@@ -551,10 +551,51 @@ def get_all_school_classes(request):
 
 @api_view(['GET'])
 @authorization
-def get_all_student_grades(request, user_id, school_subject_id):
+def get_all_school_classes_by_student_id(request, student_id):
+    """
+    This method will get all school classes by student id
+    :param request:
+    :param student_id:
+    :return: list of school classes
+    """
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] not in ['Administrator', 'Parent']:
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    user = User.objects.filter(id=requester_user.id).first()
+    if not user:
+        return error_handler(error_status=404, message=f'Not found!')
+    school_classes = SchoolClassStudent.get_school_classes_by_student_id(student_id=student_id)
+    school_classes = SchoolClassSerializer(many=True, instance=school_classes).data
+    school_classes_number = SchoolClass.count_school_classes()
+    for school_class in school_classes:
+        school_class['school_classes_number'] = school_classes_number
+        school_class = dict(school_class)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School classes',
+                'results': school_classes,
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['GET'])
+@authorization
+def get_all_student_grades(request, school_class_id, user_id, school_subject_id):
     """
     This method will get all student grades
     :param request:
+    :param school_class_id:
     :param user_id:
     :param school_subject_id:
     :return: list of grades
@@ -569,7 +610,11 @@ def get_all_student_grades(request, user_id, school_subject_id):
     user = User.objects.filter(id=requester_user.id).first()
     if not user:
         return error_handler(error_status=404, message=f'Not found!')
-    grades = Grade.get_all_grades_by_student_id_or_school_subject_id(user_id, school_subject_id)
+    grades = Grade.get_all_grades_by_student_id_and_school_class_id_or_school_subject(
+        student_id=user_id,
+        school_subject_id=school_subject_id,
+        school_class_id=school_class_id
+    )
     grades = GradeSerializer(many=True, instance=grades).data
     for grade in grades:
         grade = dict(grade)
@@ -640,10 +685,11 @@ def get_all_events_by_parent_id(request):
 
 @api_view(['GET'])
 @authorization
-def get_all_student_absences(request, user_id, school_subject_id, is_justified):
+def get_all_student_absences(request, school_class_id, user_id, school_subject_id, is_justified):
     """
     This method will get all the student absences
     :param request:
+    :param school_class_id:
     :param user_id:
     :param school_subject_id:
     :param is_justified:
@@ -660,11 +706,13 @@ def get_all_student_absences(request, user_id, school_subject_id, is_justified):
     if not user:
         return error_handler(error_status=404, message=f'Not found!')
     absences = Absence.get_all_absences(
+        school_class_id=school_class_id,
         student_id=user_id,
         school_subject_id=school_subject_id,
         is_justified=is_justified
     )
     justified_absences, unjustified_absences = Absence.count_all_absences_by_justified(
+        school_class_id=school_class_id,
         student_id=user_id,
         school_subject_id=school_subject_id
     )
@@ -698,10 +746,11 @@ def get_all_student_absences(request, user_id, school_subject_id, is_justified):
 
 @api_view(['GET'])
 @authorization
-def get_all_student_absences_number(request, user_id, school_subject_id):
+def get_all_student_absences_number(request, school_class_id, user_id, school_subject_id):
     """
     This method will count all the student absences
     :param request:
+    :param school_class_id:
     :param user_id:
     :param school_subject_id:
     :return: number of justified and unjustified absences
@@ -717,6 +766,7 @@ def get_all_student_absences_number(request, user_id, school_subject_id):
     if not user:
         return error_handler(error_status=404, message=f'Not found!')
     justified_absences, unjustified_absences = Absence.count_all_absences_by_justified(
+        school_class_id=school_class_id,
         student_id=user_id,
         school_subject_id=school_subject_id
     )
@@ -1344,7 +1394,7 @@ def get_school_class_subjects(request, school_class_id):
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
-    if decoded_security_token['role'] != 'Administrator':
+    if decoded_security_token['role'] not in ['Administrator', 'Professor', 'Parent']:
         return error_handler(error_status=403, message='Forbidden permission!')
     if not requester_user:
         return error_handler(error_status=404, message=f'Not found!')
@@ -1491,3 +1541,46 @@ def add_school_class_subject(request):
         content_type='application/json',
         status=201
     )
+
+
+# @api_view(['GET'])
+# @authorization
+# def get_all_school_subjects_by_student_id(request, student_id):
+#     """
+#     This method will get all school subjects from last school class by student id
+#     :param request:
+#     :return: list of school subjects
+#     """
+#     security_token = request.headers['Authorization']
+#     decoded_security_token = User.check_security_token(security_token=security_token)
+#     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+#     if decoded_security_token['role'] not in ['Parent', 'Professor', 'Administrator']:
+#         return error_handler(error_status=403, message='Forbidden permission!')
+#     if not requester_user:
+#         return error_handler(error_status=404, message=f'Not found!')
+#     user = User.objects.filter(id=requester_user.id).first()
+#     if not user:
+#         return error_handler(error_status=404, message=f'Not found!')
+#     query_string = request.GET
+#     limit = query_string['limit'] if 'limit' in query_string else None
+#     offset = query_string['offset'] if 'offset' in query_string else None
+#     limit, offset = check_valid_limit_and_offset(limit=limit, offset=offset)
+#     school_subjects = SchoolSubject.get_all_school_subjects(limit=limit, offset=offset)
+#     school_subjects = SchoolSubjectSerializer(many=True, instance=school_subjects).data
+#     school_subjects_number = SchoolSubject.count_school_subject()
+#     for school_subject in school_subjects:
+#         school_subject['school_subjects_number'] = school_subjects_number
+#         school_subject = dict(school_subject)
+#     return HttpResponse(
+#         json.dumps(
+#             {
+#                 'status': f'OK',
+#                 'code': 200,
+#                 'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+#                 'message': f'School subjects',
+#                 'results': school_subjects
+#             }
+#         ),
+#         content_type='application/json',
+#         status=200
+#     )

@@ -69,7 +69,8 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
             'gender',
             'role',
             'parent_mother',
-            'parent_father'
+            'parent_father',
+            'newsletter'
         ]
 
 

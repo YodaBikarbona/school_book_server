@@ -171,6 +171,9 @@ class User(models.Model):
         help_text=f'This field will fill automatically! Activation code will not be valid if user uses activation '
         f'code after one hour! Non-required!'
     )
+    newsletter = models.BooleanField(
+        default=False
+    )
 
     # Relationships
     gender = models.ForeignKey(
@@ -761,6 +764,12 @@ class SchoolClassStudent(models.Model):
         return True
 
     @staticmethod
+    def get_school_classes_by_student_id(student_id):
+        school_class_students = SchoolClassStudent.objects.filter(student_id=student_id).all()
+        school_classes = [school_class_student.school_class for school_class_student in school_class_students]
+        return school_classes
+
+    @staticmethod
     def add_new_member(data):
         try:
             school_class_student = SchoolClassStudent()
@@ -988,8 +997,12 @@ class Grade(models.Model):
         super().save(*args, **kwargs)
 
     @staticmethod
-    def get_all_grades_by_student_id_or_school_subject_id(student_id, school_subject_id):
-        grades = Grade.objects.filter(student_id=student_id)
+    def get_all_grades_by_student_id_and_school_class_id_or_school_subject(
+            student_id,
+            school_subject_id,
+            school_class_id
+    ):
+        grades = Grade.objects.filter(student_id=student_id, school_class_id=school_class_id)
         if school_subject_id > 0:
             grades = grades.filter(school_subject_id=school_subject_id)
         return grades.all()
@@ -1062,7 +1075,7 @@ class Event(models.Model):
             student_id__in=children_ids,
             is_active=True
         ).all()
-        school_class_ids = list(set([school_class.id for school_class in children_school_classes]))
+        school_class_ids = list(set([school_class.school_class_id for school_class in children_school_classes]))
         events = Event.objects.filter(school_class_id__in=school_class_ids).all()
         return events
 
@@ -1135,11 +1148,16 @@ class Absence(models.Model):
         super().save(*args, **kwargs)
 
     @staticmethod
-    def get_all_absences(student_id, school_subject_id, is_justified):
+    def get_all_absences(school_class_id, student_id, school_subject_id, is_justified):
         absences = Absence.objects.filter(
             student_id=student_id,
             student__is_active=True
         )
+        if school_class_id > 0:
+            absences = absences.filter(
+                school_class_id=school_class_id,
+                school_class__is_active=True
+            )
         if school_subject_id > 0:
             absences = absences.filter(
                 school_subject_id=school_subject_id,
@@ -1149,10 +1167,11 @@ class Absence(models.Model):
             absences = absences.filter(is_justified=True)
         if is_justified == 'false':
             absences = absences.filter(is_justified=False)
+
         return absences.all()
 
     @staticmethod
-    def count_all_absences_by_justified(student_id, school_subject_id):
+    def count_all_absences_by_justified(school_class_id, student_id, school_subject_id):
         justified_absences = Absence.objects.filter(
             student_id=student_id,
             student__is_active=True,
@@ -1171,5 +1190,14 @@ class Absence(models.Model):
             unjustified_absences = unjustified_absences.filter(
                 school_subject_id=school_subject_id,
                 school_subject__is_active=True
+            )
+        if school_class_id > 0:
+            justified_absences = justified_absences.filter(
+                school_class_id=school_class_id,
+                school_class__is_active=True
+            )
+            unjustified_absences = unjustified_absences.filter(
+                school_class_id=school_class_id,
+                school_class__is_active=True
             )
         return justified_absences.count(), unjustified_absences.count()
