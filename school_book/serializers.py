@@ -41,7 +41,11 @@ class ParentSerializer(serializers.HyperlinkedModelSerializer):
             'id',
             'created',
             'first_name',
-            'last_name'
+            'last_name',
+            'email',
+            'address',
+            'city',
+            'phone',
         ]
 
 

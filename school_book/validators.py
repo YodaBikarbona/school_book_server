@@ -16,6 +16,7 @@ class Validation:
             data['parent_mother']
             data['parent_father']
             data['password']
+            data['newsletter']
             return True
         except Exception as ex:
             print(ex)
@@ -36,6 +37,7 @@ class Validation:
             data['role_id']
             data['parent_mother']
             data['parent_father']
+            data['newsletter']
             return True
         except Exception as ex:
             print(ex)
@@ -135,6 +137,20 @@ class Validation:
     def add_school_subject_to_school_class_validation(cls, data):
         try:
             data['is_active']
+            data['user_id']
+            data['school_subject_id']
+            data['school_class_id']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def add_grade_validation(cls, data):
+        try:
+            data['comment']
+            data['grade']
+            data['grade_type']
             data['user_id']
             data['school_subject_id']
             data['school_class_id']

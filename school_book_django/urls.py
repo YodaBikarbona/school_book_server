@@ -71,5 +71,10 @@ urlpatterns = [
     path('school_book/admin/school_class_subjects/school_class_subject/<int:school_class_subject_id>/activate_or_deactivate',
          school_book_views.activate_or_deactivate_school_class_subject),
     path('school_book/admin/school_class_subjects/school_class_subject/add',
-         school_book_views.add_school_class_subject)
+         school_book_views.add_school_class_subject),
+    path('school_book/professors/professor/school_classes',
+         school_book_views.get_all_school_classes_by_professor_id),
+    path('school_book/school_classes/<int:class_room_id>/information',
+         school_book_views.get_all_school_room_information),
+    path('school_book/school_classes/new_grade', school_book_views.add_new_grade)
 ]

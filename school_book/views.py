@@ -517,7 +517,7 @@ def get_all_school_classes(request):
     security_token = request.headers['Authorization']
     decoded_security_token = User.check_security_token(security_token=security_token)
     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
-    if decoded_security_token['role'] not in 'Administrator':
+    if decoded_security_token['role'] != 'Administrator':
         return error_handler(error_status=403, message='Forbidden permission!')
     if not requester_user:
         return error_handler(error_status=404, message=f'Not found!')
@@ -531,6 +531,47 @@ def get_all_school_classes(request):
     school_classes = SchoolClass.get_all_school_classes(limit=limit, offset=offset)
     school_classes = SchoolClassSerializer(many=True, instance=school_classes).data
     school_classes_number = SchoolClass.count_school_classes()
+    for school_class in school_classes:
+        school_class['school_classes_number'] = school_classes_number
+        school_class = dict(school_class)
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School classes',
+                'results': school_classes,
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['GET'])
+@authorization
+def get_all_school_classes_by_professor_id(request):
+    """
+    This method will get all school classes by professor
+    :param request:
+    :return: list of school classes
+    """
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] not in ['Administrator', 'Professor']:
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    user = User.objects.filter(id=requester_user.id).first()
+    if not user:
+        return error_handler(error_status=404, message=f'Not found!')
+    school_classes = SchoolClassProfessor.get_all_school_classes_by_professor_id(
+        professor_id=decoded_security_token['user_id']
+    )
+    school_classes = SchoolClassSerializer(many=True, instance=school_classes).data
+    school_classes_number = len(school_classes)
     for school_class in school_classes:
         school_class['school_classes_number'] = school_classes_number
         school_class = dict(school_class)
@@ -1543,44 +1584,86 @@ def add_school_class_subject(request):
     )
 
 
-# @api_view(['GET'])
-# @authorization
-# def get_all_school_subjects_by_student_id(request, student_id):
-#     """
-#     This method will get all school subjects from last school class by student id
-#     :param request:
-#     :return: list of school subjects
-#     """
-#     security_token = request.headers['Authorization']
-#     decoded_security_token = User.check_security_token(security_token=security_token)
-#     requester_user = User.get_user_by_email(email=decoded_security_token['email'])
-#     if decoded_security_token['role'] not in ['Parent', 'Professor', 'Administrator']:
-#         return error_handler(error_status=403, message='Forbidden permission!')
-#     if not requester_user:
-#         return error_handler(error_status=404, message=f'Not found!')
-#     user = User.objects.filter(id=requester_user.id).first()
-#     if not user:
-#         return error_handler(error_status=404, message=f'Not found!')
-#     query_string = request.GET
-#     limit = query_string['limit'] if 'limit' in query_string else None
-#     offset = query_string['offset'] if 'offset' in query_string else None
-#     limit, offset = check_valid_limit_and_offset(limit=limit, offset=offset)
-#     school_subjects = SchoolSubject.get_all_school_subjects(limit=limit, offset=offset)
-#     school_subjects = SchoolSubjectSerializer(many=True, instance=school_subjects).data
-#     school_subjects_number = SchoolSubject.count_school_subject()
-#     for school_subject in school_subjects:
-#         school_subject['school_subjects_number'] = school_subjects_number
-#         school_subject = dict(school_subject)
-#     return HttpResponse(
-#         json.dumps(
-#             {
-#                 'status': f'OK',
-#                 'code': 200,
-#                 'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
-#                 'message': f'School subjects',
-#                 'results': school_subjects
-#             }
-#         ),
-#         content_type='application/json',
-#         status=200
-#     )
+@api_view(['GET'])
+@authorization
+def get_all_school_room_information(request, class_room_id):
+    """
+    This method will get all school room information (students, grades, absences etc.)
+    :param request:
+    :param class_room_id:
+    :return: list of all school room information
+    """
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] not in ['Administrator', 'Professor']:
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    user = User.objects.filter(id=requester_user.id).first()
+    if not user:
+        return error_handler(error_status=404, message=f'Not found!')
+    school_class_students = SchoolClassStudent.get_all_students_by_class_room_id(class_room_id=class_room_id)
+    school_class_students = UserSerializer(many=True, instance=school_class_students, context={'request': request}).data
+    class_room_subjects = ClassRoomSchoolSubject.get_all_school_subjects_by_school_class_id(class_room_id, 0, 0)
+    for student in school_class_students:
+        subject_list = []
+        for subject in class_room_subjects:
+            grades = Grade.get_all_grades_by_student_id_and_school_class_id_or_school_subject(
+                student_id=student['id'],
+                school_subject_id=subject.school_subject.id,
+                school_class_id=class_room_id
+            )
+            temp = {}
+            temp['school_subject'] = SchoolClassSubjectsSerializer(many=False, instance=subject).data
+            temp['school_subject']['grades'] = [grade.grade for grade in grades]
+            subject_list.append(temp)
+        student['school_subjects'] = subject_list
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'School class students',
+                'results': school_class_students,
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['POST'])
+@authorization
+def add_new_grade(request):
+    """
+    This method will add a new grade
+    :param request:
+    :param_body: comment, grade, grade_type, user_id, school_subject_id, school_class_id
+    :return: message
+    """
+    body = request.data
+    if not Validation.add_grade_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Professor':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not Grade.add_new_grade(data=body, professor_id=requester_user.id):
+        return error_handler(error_status=403, message='Grade is not added!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 201,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Grade is successfully added!',
+            }
+        ),
+        content_type='application/json',
+        status=201
+    )

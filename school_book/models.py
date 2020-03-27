@@ -319,6 +319,7 @@ class User(models.Model):
             user.birth_date = data['birth_date']
             user.gender_id = data['gender_id']
             user.role_id = data['role_id']
+            user.newsletter = data['newsletter']
             user.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
             if user.admin_password:
                 if not user.password_strength():
@@ -349,6 +350,7 @@ class User(models.Model):
             self.birth_date = data['birth_date']
             self.gender_id = data['gender_id']
             self.role_id = data['role_id']
+            self.newsletter = data['newsletter']
             self.save()
             return True
         except Exception as ex:
@@ -721,6 +723,12 @@ class SchoolClassProfessor(models.Model):
             print(ex)
             return False
 
+    @staticmethod
+    def get_all_school_classes_by_professor_id(professor_id):
+        school_classe_professors = SchoolClassProfessor.objects.filter(professor_id=professor_id).order_by('-id').all()
+        school_classes = [school_classe_professor.school_class for school_classe_professor in school_classe_professors]
+        return school_classes
+
 
 class SchoolClassStudent(models.Model):
     created = models.DateTimeField(default=django.utils.timezone.now)
@@ -782,6 +790,12 @@ class SchoolClassStudent(models.Model):
         except Exception as ex:
             print(ex)
             return False
+
+    @staticmethod
+    def get_all_students_by_class_room_id(class_room_id):
+        school_class_students = SchoolClassStudent.objects.filter(school_class_id=class_room_id).all()
+        students = [school_class_student.student for school_class_student in school_class_students]
+        return students
 
 
 class SchoolSubject(models.Model):
@@ -971,9 +985,6 @@ class Grade(models.Model):
         help_text=f'This field is required!'
     )
 
-    class Meta:
-        unique_together = ('professor', 'school_subject')
-
     def __str__(self):
         return f"{self.school_subject.name} {self.grade} {self.student.first_name} {self.student.last_name}"
 
@@ -1006,6 +1017,24 @@ class Grade(models.Model):
         if school_subject_id > 0:
             grades = grades.filter(school_subject_id=school_subject_id)
         return grades.all()
+
+    @staticmethod
+    def add_new_grade(data, professor_id):
+        try:
+            grade = Grade()
+            grade.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+            grade.grade = data['grade']
+            grade.grade_type = data['grade_type']
+            grade.comment = data['comment']
+            grade.professor_id = professor_id
+            grade.student_id = data['user_id']
+            grade.school_class_id = data['school_class_id']
+            grade.school_subject_id = data['school_subject_id']
+            grade.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
 
 
 class Event(models.Model):
