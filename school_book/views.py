@@ -1617,6 +1617,7 @@ def get_all_school_room_information(request, class_room_id):
             temp = {}
             temp['school_subject'] = SchoolClassSubjectsSerializer(many=False, instance=subject).data
             temp['school_subject']['grades'] = [grade.grade for grade in grades]
+            temp['school_subject']['grades_info'] = GradeSerializer(many=True, instance=grades).data
             subject_list.append(temp)
         student['school_subjects'] = subject_list
     return HttpResponse(
@@ -1666,4 +1667,77 @@ def add_new_grade(request):
         ),
         content_type='application/json',
         status=201
+    )
+
+
+@api_view(['POST'])
+@authorization
+def add_absence(request):
+    """
+    This method will add an absence
+    :param request:
+    :param_body: student_id, school_class_id, school_subject_id, title, comment, is_justified
+    :return: message
+    """
+    body = request.data
+    if not Validation.add_absence_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Professor':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not Absence.add_new_absence(data=body, requester_id=requester_user.id):
+        return error_handler(error_status=403, message='Absence is not added!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 201,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Absence is successfully added!',
+            }
+        ),
+        content_type='application/json',
+        status=201
+    )
+
+
+@api_view(['POST'])
+@authorization
+def edit_absence(request):
+    """
+    This method will edit an absence
+    :param request:
+    :param_body: absence_id, comment, is_justified, title
+    :return: message
+    """
+    body = request.data
+    if not Validation.edit_absence_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Professor':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    absence = Absence.get_absence_by_id(body['absence_id'])
+    if not absence:
+        return error_handler(error_status=404, message='Not found!')
+    if not absence.edit_absence(data=body):
+        return error_handler(error_status=403, message='Absence is not edited!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Absence is successfully edited!',
+            }
+        ),
+        content_type='application/json',
+        status=200
     )

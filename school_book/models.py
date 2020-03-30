@@ -1196,8 +1196,7 @@ class Absence(models.Model):
             absences = absences.filter(is_justified=True)
         if is_justified == 'false':
             absences = absences.filter(is_justified=False)
-
-        return absences.all()
+        return absences.order_by('-id').all()
 
     @staticmethod
     def count_all_absences_by_justified(school_class_id, student_id, school_subject_id):
@@ -1230,3 +1229,36 @@ class Absence(models.Model):
                 school_class__is_active=True
             )
         return justified_absences.count(), unjustified_absences.count()
+
+    @staticmethod
+    def get_absence_by_id(absence_id):
+        return Absence.objects.filter(id=absence_id).first()
+
+    @staticmethod
+    def add_new_absence(data, requester_id):
+        try:
+            absence = Absence()
+            absence.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+            absence.title = data['title']
+            absence.is_justified = data['is_justified']
+            absence.comment = data['comment']
+            absence.school_subject_id = data['school_subject_id']
+            absence.school_class_id = data['school_class_id']
+            absence.student_id = data['student_id']
+            absence.professor_id = requester_id
+            absence.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    def edit_absence(self, data):
+        try:
+            self.comment = data['comment']
+            self.is_justified = data['is_justified']
+            self.title = data['title']
+            self.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False

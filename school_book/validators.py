@@ -158,3 +158,29 @@ class Validation:
         except Exception as ex:
             print(ex)
             return False
+
+    @classmethod
+    def add_absence_validation(cls, data):
+        try:
+            data['comment']
+            data['is_justified']
+            data['title']
+            data['student_id']
+            data['school_class_id']
+            data['school_subject_id']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
+
+    @classmethod
+    def edit_absence_validation(cls, data):
+        try:
+            data['absence_id']
+            data['comment']
+            data['is_justified']
+            data['title']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False

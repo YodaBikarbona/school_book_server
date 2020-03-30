@@ -76,5 +76,7 @@ urlpatterns = [
          school_book_views.get_all_school_classes_by_professor_id),
     path('school_book/school_classes/<int:class_room_id>/information',
          school_book_views.get_all_school_room_information),
-    path('school_book/school_classes/new_grade', school_book_views.add_new_grade)
+    path('school_book/school_classes/new_grade', school_book_views.add_new_grade),
+    path('school_book/school_classes/absences/edit_absence', school_book_views.edit_absence),
+    path('school_book/school_classes/absences/new_absence', school_book_views.add_absence)
 ]
