@@ -1105,8 +1105,38 @@ class Event(models.Model):
             is_active=True
         ).all()
         school_class_ids = list(set([school_class.school_class_id for school_class in children_school_classes]))
-        events = Event.objects.filter(school_class_id__in=school_class_ids).all()
+        events = Event.objects.filter(school_class_id__in=school_class_ids).order_by('-id').all()
         return events
+
+    @staticmethod
+    def get_all_events_by_professor_id(professor_id):
+        events = Event.objects.filter(professor_id=professor_id).order_by('-id').all()
+        return events
+
+    @staticmethod
+    def get_event_by_id_and_professor_id(event_id, professor_id):
+        event = Event.objects.filter(id=event_id, professor_id=professor_id).first()
+        return event
+
+    def delete_event(self):
+        self.delete()
+
+    @staticmethod
+    def add_new_event(data, requester_id):
+        try:
+            event = Event()
+            event.created = django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
+            event.title = data['title']
+            event.comment = data['comment']
+            event.school_subject_id = data['school_subject_id']
+            event.school_class_id = data['school_class_id']
+            event.date = data['date']
+            event.professor_id = requester_id
+            event.save()
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
 
 
 class Absence(models.Model):

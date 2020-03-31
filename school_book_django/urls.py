@@ -16,8 +16,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from school_book import views as school_book_views
+from django.views.generic.base import RedirectView
 
 urlpatterns = [
+    path('', RedirectView.as_view(url='admin/', permanent=False)),
     path('admin/', admin.site.urls),
     path('school_book/users/', school_book_views.get_users),
     path('school_book/users/user/<int:user_id>', school_book_views.get_user_by_id),
@@ -78,5 +80,8 @@ urlpatterns = [
          school_book_views.get_all_school_room_information),
     path('school_book/school_classes/new_grade', school_book_views.add_new_grade),
     path('school_book/school_classes/absences/edit_absence', school_book_views.edit_absence),
-    path('school_book/school_classes/absences/new_absence', school_book_views.add_absence)
+    path('school_book/school_classes/absences/new_absence', school_book_views.add_absence),
+    path('school_book/professor/events', school_book_views.get_all_events_by_professor_id),
+    path('school_book/professor/events/event/<int:event_id>/delete', school_book_views.delete_event),
+    path('school_book/professor/events/add', school_book_views.add_event)
 ]

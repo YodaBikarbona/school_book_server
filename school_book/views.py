@@ -1010,7 +1010,7 @@ def add_new_user(request):
     )
 
 
-@api_view(['POST'])
+@api_view(['PUT'])
 @authorization
 def edit_user(request, user_id):
     """
@@ -1705,7 +1705,7 @@ def add_absence(request):
     )
 
 
-@api_view(['POST'])
+@api_view(['PUT'])
 @authorization
 def edit_absence(request):
     """
@@ -1740,4 +1740,115 @@ def edit_absence(request):
         ),
         content_type='application/json',
         status=200
+    )
+
+
+@api_view(['GET'])
+@authorization
+def get_all_events_by_professor_id(request):
+    """
+    This method will get all the events by professor_id
+    :param request:
+    :return: list of events
+    """
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Professor':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    user = User.objects.filter(id=requester_user.id).first()
+    if not user:
+        return error_handler(error_status=404, message=f'Not found!')
+    events = Event.get_all_events_by_professor_id(professor_id=user.id)
+    events = EventSerializer(many=True, instance=events).data
+    for event in events:
+        event = dict(event)
+        event['professor'] = dict(event['professor'])
+        event['professor']['role'] = dict(event['professor']['role'])
+        event['professor']['gender'] = dict(event['professor']['gender'])
+        event['school_subject'] = dict(event['school_subject'])
+        event['school_class'] = dict(event['school_class'])
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Events',
+                'results': events,
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['DELETE'])
+@authorization
+def delete_event(request, event_id):
+    """
+    This method will delete an old event
+    :param request:
+    :param event_id:
+    :return: message
+    """
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Professor':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    event = Event.get_event_by_id_and_professor_id(event_id=event_id, professor_id=requester_user.id)
+    if not event:
+        return error_handler(error_status=404, message=f"Event doesn't exist!")
+    event.delete_event()
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 200,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Event is successfully deleted!',
+            }
+        ),
+        content_type='application/json',
+        status=200
+    )
+
+
+@api_view(['POST'])
+@authorization
+def add_event(request):
+    """
+    This method will add an event
+    :param request:
+    :param_body: comment, date, school_class_id, school_subject_id, title
+    :return: message
+    """
+    body = request.data
+    if not Validation.add_event_validation(data=body):
+        return error_handler(error_status=400, message=f'Wrong data!')
+    security_token = request.headers['Authorization']
+    decoded_security_token = User.check_security_token(security_token=security_token)
+    requester_user = User.get_user_by_email(email=decoded_security_token['email'])
+    if decoded_security_token['role'] != 'Professor':
+        return error_handler(error_status=403, message='Forbidden permission!')
+    if not requester_user:
+        return error_handler(error_status=404, message=f'Not found!')
+    if not Event.add_new_event(data=body, requester_id=requester_user.id):
+        return error_handler(error_status=403, message='Event is not added!')
+    return HttpResponse(
+        json.dumps(
+            {
+                'status': f'OK',
+                'code': 201,
+                'server_time': django.utils.timezone.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                'message': f'Event is successfully added!',
+            }
+        ),
+        content_type='application/json',
+        status=201
     )

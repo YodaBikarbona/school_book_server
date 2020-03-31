@@ -184,3 +184,16 @@ class Validation:
         except Exception as ex:
             print(ex)
             return False
+
+    @classmethod
+    def add_event_validation(cls, data):
+        try:
+            data['comment']
+            data['title']
+            data['date']
+            data['school_class_id']
+            data['school_subject_id']
+            return True
+        except Exception as ex:
+            print(ex)
+            return False
